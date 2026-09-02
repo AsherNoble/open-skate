@@ -48,17 +48,19 @@ class SkateSim:
 
         # Collision geoms of the deck: what contact and ray casts see.
         self._deck_gids = _named("deck_")
-        # What the silhouette comparison sees: the visual popsicle outline PLUS
-        # the trucks and wheels.
+        # What the silhouette comparison sees: the deck outline ONLY.
         #
-        # The hardware is not decoration here. A thin symmetric plate's outline
-        # is the same flipped over or reversed end-for-end, which left
-        # silhouette pose fitting with ~93 deg median rotation error at IoU
-        # 0.98 -- deep false optima, not a search failure. Trucks and wheels
-        # are hidden under an upright board and plainly visible under an
-        # inverted one, so including them breaks that symmetry.
-        self._deck_visual_gids = (_named("vis_") | _named("front_")
-                                  | _named("rear_"))
+        # Trucks and wheels were briefly included, to break the flip symmetry
+        # that made per-frame pose fitting ambiguous. That cost more than it
+        # bought: the wheels sit at the deck's half-width plus their own
+        # radius, so they widen the silhouette by ~26% and broke the width
+        # match the camera had been calibrated on (measured +22.3% against
+        # real frames, where length and framing were within 1%). The real
+        # board at rest shows a clean deck outline with the hardware hidden
+        # underneath -- real width 0.1104 matches deck-only 0.1116, not
+        # deck-plus-wheels 0.1350. Pose fitting has since been abandoned, so
+        # the reason for including them is gone.
+        self._deck_visual_gids = _named("vis_")
         self.reset()
 
     # -- lifecycle ---------------------------------------------------------

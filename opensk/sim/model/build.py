@@ -177,6 +177,10 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK) -> str:
   <visual>
     <headlight ambient="0.45 0.45 0.45" diffuse="0.7 0.7 0.7"/>
     <map znear="0.01" zfar="80"/>
+    <!-- The offscreen framebuffer defaults to 640x480, which caps every
+         render. Silhouette fitting runs small, but figures and inspection
+         want the real capture's portrait shape. -->
+    <global offheight="1024" offwidth="1024"/>
   </visual>
   <worldbody>
     <light pos="2 -2 4" dir="-0.4 0.4 -1" directional="true"/>
