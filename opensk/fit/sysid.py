@@ -52,6 +52,13 @@ class Corpus:
     targets: list[list]
     height: int = 224
     width: int = 103
+    # Camera fitted to THIS corpus. True Skate lets the player move the camera,
+    # so it is a per-capture-session property, not a constant: the real board is
+    # 0.2857 of frame height in the flick corpus and 0.1154 in the trick
+    # captures. Fitting with the wrong one makes silhouette overlap a measure of
+    # that mismatch -- simulated and real disagreed at IoU 0.08 BEFORE the
+    # gesture even started -- and no parameter search can recover it.
+    camera: dict | None = None
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -63,7 +70,7 @@ class Corpus:
         held, train = idx[:n], idx[n:]
         pick = lambda ii: Corpus([self.samples[i] for i in ii],
                                  [self.targets[i] for i in ii],
-                                 self.height, self.width)
+                                 self.height, self.width, self.camera)
         return pick(train), pick(held)
 
 
@@ -135,7 +142,7 @@ def _touches_deck(sample: Sample, tm: TouchModel, n: int = 30) -> bool:
 def build_corpus(limit: int | None = None, *, height: int = 224,
                  min_frames: int = 4, require_motion: bool = True,
                  use_cache: bool = True, root: pathlib.Path | None = None,
-                 verbose: bool = True) -> Corpus:
+                 camera: dict | None = None, verbose: bool = True) -> Corpus:
     """Segment usable samples once, up front.
 
     Three filters, each measured rather than guessed:
@@ -179,7 +186,16 @@ def build_corpus(limit: int | None = None, *, height: int = 224,
         targets.append(tg)
     if verbose:
         print(f"corpus: {len(samples)} usable of {seen} scanned")
-    return Corpus(samples, targets, h, w)
+    return Corpus(samples, targets, h, w, camera)
+
+
+def with_camera(params: SkateParams, corpus: Corpus) -> SkateParams:
+    """Apply the corpus's own camera to `params`.
+
+    Every scoring path goes through this so a corpus can never be scored with
+    another capture session's camera.
+    """
+    return params.replace(**corpus.camera) if corpus.camera else params
 
 
 def mean_gain(params: SkateParams, corpus: Corpus, *,
@@ -193,6 +209,7 @@ def mean_gain(params: SkateParams, corpus: Corpus, *,
     frames is to stop moving, because raw overlap is dominated by the board
     simply being roughly where it started.
     """
+    params = with_camera(params, corpus)
     sim = SkateSim(params)
     renderer = SceneRenderer(sim, height=corpus.height)
     idx = range(len(corpus.samples))
@@ -220,6 +237,7 @@ def mean_iou(params: SkateParams, corpus: Corpus, *,
     stochastic. CMA-ES tolerates that well, and it is the difference between a
     fit that takes an hour and one that takes a day.
     """
+    params = with_camera(params, corpus)
     sim = SkateSim(params)
     renderer = SceneRenderer(sim, height=corpus.height)
     idx = range(len(corpus.samples))
