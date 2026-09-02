@@ -113,6 +113,25 @@ def _load_targets(sample: Sample, h: int, w: int, use_cache: bool):
     return tg
 
 
+def _touches_deck(sample: Sample, tm: TouchModel, n: int = 30) -> bool:
+    """Does the gesture path ever pass over the deck?
+
+    Was "does it START on the deck", which is too strict now that a finger can
+    catch the board after starting off it. Real trick gestures routinely begin
+    on the ground behind the tail and flick up through the deck: 51% of
+    captured recipes did exactly that, and requiring an on-deck start threw
+    them all away.
+    """
+    from ..sim.gesture_spec import schedule_recipe
+
+    for _, path in schedule_recipe(sample.recipe()):
+        for u in np.linspace(0.0, 1.0, n):
+            x, y = path.position_at(float(u) * path.duration)
+            if tm.cast(float(x), float(y))[0] == ON_DECK:
+                return True
+    return False
+
+
 def build_corpus(limit: int | None = None, *, height: int = 224,
                  min_frames: int = 4, require_motion: bool = True,
                  use_cache: bool = True, root: pathlib.Path | None = None,
@@ -142,10 +161,9 @@ def build_corpus(limit: int | None = None, *, height: int = 224,
             break
         seen += 1
         try:
-            sx, sy = s.start_point()
+            if not _touches_deck(s, tm):
+                continue
         except Exception:
-            continue
-        if tm.cast(float(sx), float(sy))[0] != ON_DECK:
             continue
         tg = _load_targets(s, h, w, use_cache)
         good = [m for m in tg if m is not None]
