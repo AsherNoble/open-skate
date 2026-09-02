@@ -49,68 +49,75 @@ class BoardMask:
         return self.length_px / max(self.width_px, 1e-6)
 
 
-def board_mask(frame_bgr: np.ndarray, *, dark_percentile: float = 12.0
+def board_mask(frame_bgr: np.ndarray, *, dark_percentile: float | None = None
                ) -> BoardMask | None:
     """Largest plausible dark elongated blob in the play area.
 
-    The threshold is a percentile of the play area's own brightness rather than
-    a fixed value, so it survives the large lighting differences between parks
-    (the glasshouse and Munich captures are far brighter than SLS Newark).
+    Sweeps several brightness percentiles rather than trusting one. A single
+    fixed cut is not portable across parks: on the bright-yellow SLS floor the
+    12th percentile captures only the deck's grip tape and misses its lighter
+    graphic, giving a fragment at 0.210 of frame height where the whole board
+    is 0.293 -- and the fragment then WON the old score, because that score
+    peaked at a hardcoded area fraction and penalised the correct, larger blob.
+
+    Candidates from every threshold compete on one score, and among plausible
+    board shapes the largest wins: the board is the biggest dark elongated
+    object near the centre of the play area.
     """
     h, w = frame_bgr.shape[:2]
     y0, y1 = int(UI_TOP * h), int(UI_BOTTOM * h)
     x0, x1 = int(ROI_X0 * w), int(ROI_X1 * w)
     roi = cv2.cvtColor(frame_bgr[y0:y1, x0:x1], cv2.COLOR_BGR2GRAY)
-
-    thresh = np.percentile(roi, dark_percentile)
-    dark = (roi < thresh).astype(np.uint8)
-    dark = cv2.morphologyEx(dark, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
-    dark = cv2.morphologyEx(dark, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
-
-    n, labels, stats, cents = cv2.connectedComponentsWithStats(dark, 8)
-    if n <= 1:
-        return None
-
     roi_h, roi_w = roi.shape
+
+    percentiles = ([dark_percentile] if dark_percentile is not None
+                   else (10.0, 14.0, 18.0, 22.0, 28.0, 34.0))
+
     best, best_score = None, -1.0
-    for i in range(1, n):
-        area = stats[i, cv2.CC_STAT_AREA]
-        # The deck is a substantial object; anything tiny is texture or shadow.
-        if area < 0.0015 * roi_h * roi_w:
+    for pct in percentiles:
+        thresh = np.percentile(roi, pct)
+        dark = (roi < thresh).astype(np.uint8)
+        dark = cv2.morphologyEx(dark, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+        dark = cv2.morphologyEx(dark, cv2.MORPH_CLOSE, np.ones((9, 9), np.uint8))
+        n, labels, stats, _ = cv2.connectedComponentsWithStats(dark, 8)
+        if n <= 1:
             continue
-        bx, by = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP]
-        bw, bh = stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]
-        # A blob touching the top of the play area is the skyline bleeding
-        # through, not the board; one spanning most of the width is scenery.
-        if by <= 1 or bw > 0.60 * roi_w or bh > 0.75 * roi_h:
-            continue
-        ys, xs = np.nonzero(labels == i)
-        pts = np.stack([xs, ys], 1).astype(np.float32)
-        (cx, cy), (rw, rh), ang = cv2.minAreaRect(pts)
-        length, width = max(rw, rh), min(rw, rh)
-        if width < 1e-6:
-            continue
-        elong = length / width
-        if elong < 1.4:
-            continue
-        centrality = 1.0 - min(1.0, abs(cx - roi_w / 2) / (roi_w / 2))
-        # Score by how board-shaped and board-placed the blob is. The earlier
-        # version keyed on an arbitrary target area fraction, which scored the
-        # typical board at 0.03 and so inverted any threshold applied to it.
-        elong_ok = math.exp(-((elong - 2.6) / 1.1) ** 2)
-        size_ok = math.exp(-((math.log(max(area, 1.0) / (0.021 * roi_h * roi_w))) / 0.9) ** 2)
-        score = elong_ok * size_ok * (0.35 + 0.65 * centrality)
-        if score > best_score:
-            # minAreaRect's angle refers to the wider side; normalise so the
-            # angle always describes the LONG axis, measured from screen-up.
-            long_ang = ang if rw >= rh else ang + 90.0
-            long_ang = (long_ang + 90.0) % 180.0 - 90.0
-            full = np.zeros((h, w), dtype=bool)
-            full[y0:y1, x0:x1] = labels == i
-            best = BoardMask(full, np.array([cx + x0, cy + y0]), float(long_ang),
-                             float(length), float(width), float(area),
-                             float(min(score, 1.0)))
-            best_score = score
+        for i in range(1, n):
+            area = stats[i, cv2.CC_STAT_AREA]
+            if area < 0.0015 * roi_h * roi_w:
+                continue
+            bx, by = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP]
+            bw, bh = stats[i, cv2.CC_STAT_WIDTH], stats[i, cv2.CC_STAT_HEIGHT]
+            # A blob touching the top of the play area is the skyline bleeding
+            # through, not the board; one spanning most of the width is scenery.
+            if by <= 1 or bw > 0.60 * roi_w or bh > 0.75 * roi_h:
+                continue
+            ys, xs = np.nonzero(labels == i)
+            pts = np.stack([xs, ys], 1).astype(np.float32)
+            (cx, cy), (rw, rh), ang = cv2.minAreaRect(pts)
+            length, width = max(rw, rh), min(rw, rh)
+            if width < 1e-6:
+                continue
+            elong = length / width
+            if not (1.5 <= elong <= 5.5):
+                continue
+            if not (0.08 <= length / h <= 0.45):
+                continue
+            centrality = 1.0 - min(1.0, abs(cx - roi_w / 2) / (roi_w / 2))
+            elong_ok = math.exp(-((elong - 2.6) / 1.3) ** 2)
+            # Prefer the LARGEST plausible blob: a partial deck is a subset of
+            # the real one, so size breaks the tie in the right direction.
+            size_pref = min(1.0, (length / h) / 0.30)
+            score = elong_ok * size_pref * (0.35 + 0.65 * centrality)
+            if score > best_score:
+                long_ang = ang if rw >= rh else ang + 90.0
+                long_ang = (long_ang + 90.0) % 180.0 - 90.0
+                full = np.zeros((h, w), dtype=bool)
+                full[y0:y1, x0:x1] = labels == i
+                best = BoardMask(full, np.array([cx + x0, cy + y0]),
+                                 float(long_ang), float(length), float(width),
+                                 float(area), float(min(score, 1.0)))
+                best_score = score
     return best
 
 
