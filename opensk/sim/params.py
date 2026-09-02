@@ -87,6 +87,13 @@ class SkateParams:
     # sit in a basin where the board actually behaves: below roughly
     # gain*slip_distance = 100 N the tail never reaches the ground and no
     # gesture can ollie, which would leave sysid optimising over a flat region.
+    # Coulomb limit on the finger's grip: the contact point sticks to the deck
+    # while the tangential pull stays under touch_friction times the normal
+    # press, and slips toward the fingertip beyond it. This is what lets one
+    # model do both tricks -- a tail press is mostly normal force, so it
+    # sticks and pops; a flick is mostly tangential, so it slips to the rail
+    # and rolls the board.
+    touch_friction: float = 1.8
     touch_gain: float = 600.0
     touch_damping: float = 12.0
     touch_force_max: float = 250.0
@@ -178,6 +185,7 @@ FIT_SPEC: dict[str, tuple[float, float]] = {
     "contact_solimp_dmin":   (0.60, 0.97),
     "contact_solimp_dmax":   (0.90, 0.999),
     "touch_gain":            (30.0, 900.0),
+    "touch_friction":        (0.15, 4.0),
     "touch_damping":         (0.5, 60.0),
     "touch_force_max":       (15.0, 400.0),
     "cam_fov_deg":           (25.0, 70.0),

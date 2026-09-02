@@ -125,7 +125,39 @@ class TouchModel:
             # real gesture. Instead the force simply saturates at
             # touch_force_max, which reads as "you are pulling the board that
             # way as hard as a finger can".
+            # The contact STICKS or SLIPS, by a Coulomb limit.
+            #
+            # This is what makes a flip possible at all. Roll torque is
+            # r_y * F_z: a downward force at a laterally offset contact. With
+            # the contact pinned where the finger first landed -- near the
+            # centreline for these recipes -- r_y is about zero and no pull can
+            # roll the board, which is why only 2% of captured trick recipes
+            # reached a full flip and the median roll was 1 degree. Letting go
+            # at the edge is worse still (0% full flips): it cuts the force off
+            # before it does any work.
+            #
+            # Sliding all the way, every step, is not right either: it costs
+            # the ollie, because a tail press only pops while the contact
+            # STAYS on the tail. A Coulomb limit gives both -- a press is
+            # mostly normal force so it sticks, a flick is mostly tangential
+            # so it slips out to the rail and rolls the board.
+            origin, R = self.sim.deck_frame()
             contact = self.sim.body_point(f.local)
+            tip_now = self.camera.point_at_depth(
+                nx, ny, self.camera.depth_of(contact))
+            pull = tip_now - contact
+            normal = R[:, 2]
+            f_n = float(pull @ normal)
+            tangent = pull - f_n * normal
+            if np.linalg.norm(tangent) > self.p.touch_friction * abs(f_n):
+                rel = R.T @ (tip_now - origin)
+                half_l = 0.5 * self.p.deck_length
+                half_w = 0.5 * self.p.deck_width
+                f.local = np.array([
+                    float(np.clip(rel[0], -half_l, half_l)),
+                    float(np.clip(rel[1], -half_w, half_w)),
+                    0.5 * self.p.deck_thickness])
+                contact = self.sim.body_point(f.local)
             tip = self.camera.point_at_depth(nx, ny,
                                              self.camera.depth_of(contact))
             err = tip - contact
