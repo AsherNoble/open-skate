@@ -23,9 +23,9 @@ class SkateParams:
     deck_length: float = 0.813
     deck_width: float = 0.196
     deck_thickness: float = 0.012
-    deck_mass: float = 0.9001
+    deck_mass: float = 1.1125
     # Wheelbase: axle-to-axle. Real decks run 0.33-0.38 m.
-    wheelbase: float = 0.3343
+    wheelbase: float = 0.3200
     # Kicktails. The nose and tail angle up off the flat, and the tail angle
     # is what sets how far the deck must pitch before it strikes the ground —
     # i.e. it governs the pop directly. Measured, not fitted.
@@ -45,39 +45,39 @@ class SkateParams:
     deck_taper_power: float = 1.6
 
     # --- trucks ------------------------------------------------------------
-    truck_mass: float = 0.3472
+    truck_mass: float = 0.3087
     # Kingpin angle measured from the deck plane. ~50 deg is standard; this
     # is what converts deck roll into wheel steer, so it dominates carving.
-    kingpin_angle_deg: float = 50.6676
+    kingpin_angle_deg: float = 50.7406
     # Bushing stiffness/damping about the steering axis. The single most
     # important pair for how the board feels: too stiff and it will not
     # carve, too soft and it wobbles.
-    truck_stiffness: float = 48.5262
-    truck_damping: float = 0.5726
+    truck_stiffness: float = 22.8556
+    truck_damping: float = 2.7071
     # Mechanical stop on the steering hinge (bushings bottoming out).
-    truck_limit_deg: float = 39.2777
+    truck_limit_deg: float = 32.5701
 
     # --- wheels ------------------------------------------------------------
     # SPHERE geoms, not cylinders: MJX-JAX cannot collide a cylinder with a
     # box or a mesh, and every park surface is a box. See the plan.
     wheel_radius: float = 0.027
-    wheel_mass: float = 0.1043
+    wheel_mass: float = 0.0970
     # Axle half-separation; wheels sit at +/- this in the deck's y axis.
     axle_halfwidth: float = 0.105
-    wheel_friction_slide: float = 0.6847
-    wheel_friction_spin: float = 0.0039
+    wheel_friction_slide: float = 1.0282
+    wheel_friction_spin: float = 0.0051
     wheel_friction_roll: float = 0.0004
     # Bearing drag, as joint friction loss on the wheel hinge.
     wheel_frictionloss: float = 0.0001
 
     # --- deck contact (the ends strike the ground; this is the pop) --------
-    deck_friction_slide: float = 0.1543
+    deck_friction_slide: float = 0.3163
     # solref/solimp govern MuJoCo's soft contact. The tail-strike impulse is
     # exactly what sets ollie height, so these are prime fit targets.
-    contact_solref_time: float = 0.0375
-    contact_solref_damp: float = 0.3387
-    contact_solimp_dmin: float = 0.8484
-    contact_solimp_dmax: float = 0.9087
+    contact_solref_time: float = 0.0487
+    contact_solref_damp: float = 0.9159
+    contact_solimp_dmin: float = 0.8884
+    contact_solimp_dmax: float = 0.9300
     contact_solimp_width: float = 0.001
 
     # --- touch model (screen gesture -> force on the deck) -----------------
@@ -93,10 +93,10 @@ class SkateParams:
     # model do both tricks -- a tail press is mostly normal force, so it
     # sticks and pops; a flick is mostly tangential, so it slips to the rail
     # and rolls the board.
-    touch_friction: float = 3.4938
-    touch_gain: float = 2836.1676
-    touch_damping: float = 2.1455
-    touch_force_max: float = 853.6759
+    touch_friction: float = 3.4339
+    touch_gain: float = 2490.4318
+    touch_damping: float = 1.2223
+    touch_force_max: float = 687.2380
     # Retained for reporting only; no longer gates release. See sim/touch.py:
     # a hard slip release left the finger disengaged for 76% of the median
     # real gesture, and only 0.1% of the 1391 real gestures are short enough
@@ -150,12 +150,12 @@ class SkateParams:
     # number for both drove it to 58.6, which fits the trick data well and
     # implies an absurd 7.7 m/s single push. Separated so each is set by the
     # evidence that actually bears on it.
-    ground_shove_gain: float = 58.584
+    ground_shove_gain: float = 118.8201
 
     # --- spin button -------------------------------------------------------
     # True Skate's rotate button, which curved drags cannot express. Held by a
     # second finger; modelled as a yaw torque about the deck normal.
-    spin_torque: float = 2.2705
+    spin_torque: float = 4.7380
 
     # --- integrator --------------------------------------------------------
     # 500 Hz, comfortably above True Skate's 120 Hz, so contact resolution is
