@@ -50,6 +50,8 @@ class Corpus:
     """
     samples: list[Sample]
     targets: list[list]
+    height: int = 224
+    width: int = 103
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -60,7 +62,8 @@ class Corpus:
         n = int(round(frac * len(idx)))
         held, train = idx[:n], idx[n:]
         pick = lambda ii: Corpus([self.samples[i] for i in ii],
-                                 [self.targets[i] for i in ii])
+                                 [self.targets[i] for i in ii],
+                                 self.height, self.width)
         return pick(train), pick(held)
 
 
@@ -150,17 +153,31 @@ def build_corpus(limit: int | None = None, *, height: int = 224,
         targets.append(tg)
     if verbose:
         print(f"corpus: {len(samples)} usable of {seen} scanned")
-    return Corpus(samples, targets)
+    return Corpus(samples, targets, h, w)
 
 
-def mean_iou(params: SkateParams, corpus: Corpus, *, height: int = 224,
-             sim: SkateSim | None = None) -> float:
-    """Mean per-sample overlap. Samples that score no frames are skipped."""
+def mean_iou(params: SkateParams, corpus: Corpus, *,
+             subsample: int | None = None, rng=None) -> float:
+    """Mean per-sample overlap. Samples that score no frames are skipped.
+
+    Render size comes from the corpus, never from a caller argument: the cached
+    masks were segmented at one resolution and a mismatch is a silent shape
+    error at best.
+
+    `subsample` scores a random subset per call, making the objective
+    stochastic. CMA-ES tolerates that well, and it is the difference between a
+    fit that takes an hour and one that takes a day.
+    """
     sim = SkateSim(params)
-    renderer = SceneRenderer(sim, height=height)
+    renderer = SceneRenderer(sim, height=corpus.height)
+    idx = range(len(corpus.samples))
+    if subsample is not None and subsample < len(corpus.samples):
+        rng = rng or np.random.default_rng(0)
+        idx = rng.choice(len(corpus.samples), subsample, replace=False)
     vals = []
-    for s, tg in zip(corpus.samples, corpus.targets):
-        sc = score_sample(s, params, targets=tg, sim=sim, renderer=renderer)
+    for i in idx:
+        sc = score_sample(corpus.samples[i], params, targets=corpus.targets[i],
+                          sim=sim, renderer=renderer)
         if sc.n_scored:
             vals.append(sc.iou)
     return float(np.mean(vals)) if vals else 0.0
@@ -168,7 +185,8 @@ def mean_iou(params: SkateParams, corpus: Corpus, *, height: int = 224,
 
 def fit(corpus: Corpus, *, evals: int = 300, seed: int = 0,
         base: SkateParams | None = None, log_path: str | None = None,
-        held: Corpus | None = None, verbose: bool = True):
+        held: Corpus | None = None, subsample: int | None = None,
+        verbose: bool = True):
     """CMA-ES over PHYSICS_KEYS. Returns (best_params, report)."""
     import cma
 
@@ -189,13 +207,16 @@ def fit(corpus: Corpus, *, evals: int = 300, seed: int = 0,
         {"bounds": [list(lo), list(hi)], "seed": seed + 1, "maxfevals": evals,
          "verbose": -9, "CMA_stds": list((hi - lo) / 5.0)})
 
+    # One generator for the whole run, so each generation scores a different
+    # subset and the search cannot overfit one lucky draw.
+    obj_rng = np.random.default_rng(seed + 17)
     best_iou, best_params, n = -1.0, base, 0
     while not es.stop():
         xs = es.ask()
         losses = []
         for x in xs:
             p = to_params(x)
-            iou = mean_iou(p, corpus)
+            iou = mean_iou(p, corpus, subsample=subsample, rng=obj_rng)
             losses.append(1.0 - iou)
             n += 1
             if iou > best_iou:
@@ -214,7 +235,7 @@ def fit(corpus: Corpus, *, evals: int = 300, seed: int = 0,
               "seconds": time.time() - t0,
               "params": {k: getattr(best_params, k) for k in PHYSICS_KEYS}}
     if held is not None:
-        report["held_iou"] = mean_iou(best_params, held)
+        report["held_iou"] = mean_iou(best_params, held)  # full held set
         report["held_baseline_inert"] = mean_iou(
             best_params.replace(touch_gain=1e-3, touch_force_max=1e-3), held)
     if log:
