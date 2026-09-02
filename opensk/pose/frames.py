@@ -49,11 +49,24 @@ class Sample:
     frame_paths: list[pathlib.Path]
     park: str | None
     spin_active: bool
+    params: list | None = None          # CMA-ES vector, for recipe samples
     video: pathlib.Path | None = None   # frames.mp4, when frames are packed
     _decoded: list | None = None        # lazily decoded video frames
 
     def recipe(self) -> dict:
-        """The gesture, in the schema `TouchModel.run` consumes."""
+        """The gesture, in the schema `TouchModel.run` consumes.
+
+        Recipe-kind samples store the flat CMA-ES parameter vector rather than
+        explicit waypoints, and are decoded with the rig's own
+        `unpack_gesture_params` so the layout has exactly one definition -- it
+        infers the slot count and the spin block from the vector length alone.
+        """
+        if self.params is not None:
+            if str(RIG_SRC) not in sys.path:
+                sys.path.insert(0, str(RIG_SRC))
+            import numpy as _np
+            from trueskate_ai.rl.cmaes.action_param import unpack_gesture_params
+            return unpack_gesture_params(_np.asarray(self.params, dtype=float))
         return {"gestures": [{"points": self.waypoints.tolist(),
                               "duration": self.duration,
                               "easing_power": self.easing_power}],
@@ -88,31 +101,40 @@ def load_sample(d: pathlib.Path) -> Sample | None:
         return None
     m = json.loads(meta_path.read_text())
     wp = m.get("waypoints")
-    if not wp or len(wp) < 2:
-        return None  # params-vector samples carry no explicit waypoints
+    params = m.get("params")
+    if (not wp or len(wp) < 2) and not params:
+        return None
     times = np.asarray(m.get("frame_times", []), dtype=float)
     if not len(times):
         return None
 
+    wp_arr = np.asarray(wp, float) if wp else np.zeros((0, 2))
+    dur = float(m.get("duration", 0.0))
+    ease = float(m.get("easing_power", 1.0))
+    park, spin = m.get("park"), bool(m.get("spin_active", False))
+
     video = d / "frames.mp4"
     if m.get("frames_format") == "mp4" or video.exists():
         # One entry per frame so len(frame_paths) still reports frame count.
-        return Sample(d, np.asarray(wp, float), float(m["duration"]),
-                      float(m.get("easing_power", 1.0)), times,
-                      [video] * len(times), m.get("park"),
-                      bool(m.get("spin_active", False)), video)
+        return Sample(d, wp_arr, dur, ease, times, [video] * len(times),
+                      park, spin, params, video)
 
     frames = sorted(d.glob("frame_*.png"))
     if not len(frames) or len(frames) != len(times):
         return None
-    return Sample(d, np.asarray(wp, float), float(m["duration"]),
-                  float(m.get("easing_power", 1.0)), times, frames,
-                  m.get("park"), bool(m.get("spin_active", False)))
+    return Sample(d, wp_arr, dur, ease, times, frames, park, spin, params)
 
 
 def iter_samples(root: pathlib.Path = CORPUS):
-    for d in sorted(root.glob("*/sample_*")):
-        s = load_sample(d)
+    """Every loadable sample under `root`, whatever the nesting.
+
+    Layouts differ between corpora: the self-labelled traces are
+    `session/sample_NNN`, while the XCTest collector adds a park level
+    (`session/park/sample_NNNNNN`). Globbing on meta.json finds both rather
+    than encoding one depth.
+    """
+    for meta in sorted(root.glob("**/meta.json")):
+        s = load_sample(meta.parent)
         if s is not None:
             yield s
 

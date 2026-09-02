@@ -71,7 +71,10 @@ CACHE_DIR = pathlib.Path(__file__).resolve().parents[2] / "cache" / "masks"
 
 
 def _cache_path(sample: Sample, h: int, w: int) -> pathlib.Path:
-    key = f"{sample.path.parent.name}__{sample.path.name}__{h}x{w}.npz"
+    # Include the grandparent so samples from different corpora with the same
+    # session/sample names cannot collide in the cache.
+    key = (f"{sample.path.parent.parent.name}__{sample.path.parent.name}"
+           f"__{sample.path.name}__{h}x{w}.npz")
     return CACHE_DIR / key
 
 
@@ -112,7 +115,8 @@ def _load_targets(sample: Sample, h: int, w: int, use_cache: bool):
 
 def build_corpus(limit: int | None = None, *, height: int = 224,
                  min_frames: int = 4, require_motion: bool = True,
-                 use_cache: bool = True, verbose: bool = True) -> Corpus:
+                 use_cache: bool = True, root: pathlib.Path | None = None,
+                 verbose: bool = True) -> Corpus:
     """Segment usable samples once, up front.
 
     Three filters, each measured rather than guessed:
@@ -133,7 +137,7 @@ def build_corpus(limit: int | None = None, *, height: int = 224,
     samples: list[Sample] = []
     targets: list[list] = []
     seen = 0
-    for s in iter_samples():
+    for s in iter_samples(root) if root is not None else iter_samples():
         if limit is not None and len(samples) >= limit:
             break
         seen += 1
