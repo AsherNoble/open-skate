@@ -18,6 +18,7 @@ from __future__ import annotations
 import math
 
 from ..params import SkateParams
+from .parks import FLAT_PARK, PARKS  # noqa: F401  (re-exported)
 
 
 def _deck_station(p: SkateParams, u: float, flat_half: float,
@@ -181,11 +182,6 @@ def _sol(p: SkateParams) -> str:
     return (f'solref="{p.contact_solref_time:.6f} {p.contact_solref_damp:.6f}" '
             f'solimp="{p.contact_solimp_dmin:.6f} {p.contact_solimp_dmax:.6f} '
             f'{p.contact_solimp_width:.6f}"')
-
-
-FLAT_PARK = """
-    <geom name="ground" type="plane" size="60 60 0.1" pos="0 0 0"
-          friction="1.0 0.005 0.0001" condim="3" rgba="0.55 0.56 0.58 1"/>"""
 
 
 def build_scene(p: SkateParams, park: str = FLAT_PARK) -> str:
