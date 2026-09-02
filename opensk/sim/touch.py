@@ -45,8 +45,8 @@ class Finger:
         self.path = path
         self.t0 = t0
         self.kind = None
-        self.local = None
-        self.depth = 0.0
+        self.local = None   # deck-local (x, y) the finger is currently over
+        self.depth = 0.0    # view depth the fingertip is held at, from touch-down
         self.released = False
         self._prev_screen = None
 
@@ -95,22 +95,25 @@ class TouchModel:
             return
 
         if f.kind == ON_DECK:
-            grab_world = self.sim.body_point(f.local)
-            # Track the fingertip at the depth of the grabbed point, so lateral
-            # screen motion is lateral world motion rather than motion toward
-            # the camera.
-            depth = self.camera.depth_of(grab_world)
-            target = self.camera.point_at_depth(nx, ny, depth)
-            err = target - grab_world
-            if np.linalg.norm(err) > self.p.touch_slip_distance:
-                f.released = True  # dragged off the deck: the grip lets go
-                return
-            vel = self._point_velocity(grab_world)
+            # The finger holds the MATERIAL point it first touched, and pulls
+            # it toward the fingertip. The grab is not released early: a
+            # sliding contact was tried and falsified immediately (from the
+            # tail tip, any down-screen drag carries the contact point off the
+            # end of the deck within 2-3 substeps), and a hard release past a
+            # fixed distance left the finger disengaged for 76% of the median
+            # real gesture. Instead the force simply saturates at
+            # touch_force_max, which reads as "you are pulling the board that
+            # way as hard as a finger can".
+            contact = self.sim.body_point(f.local)
+            tip = self.camera.point_at_depth(nx, ny,
+                                             self.camera.depth_of(contact))
+            err = tip - contact
+            vel = self._point_velocity(contact)
             force = self.p.touch_gain * err - self.p.touch_damping * vel
             mag = float(np.linalg.norm(force))
             if mag > self.p.touch_force_max:
                 force *= self.p.touch_force_max / mag
-            self.sim.apply_force(force, grab_world)
+            self.sim.apply_force(force, contact)
 
         elif f.kind == ON_GROUND:
             # A push. Each substep contributes an impulse proportional to the

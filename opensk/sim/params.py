@@ -78,7 +78,10 @@ class SkateParams:
     touch_gain: float = 600.0
     touch_damping: float = 12.0
     touch_force_max: float = 250.0
-    # How far a fingertip may drag from its grab point before the grip slips.
+    # Retained for reporting only; no longer gates release. See sim/touch.py:
+    # a hard slip release left the finger disengaged for 76% of the median
+    # real gesture, and only 0.1% of the 1391 real gestures are short enough
+    # to complete without tripping it.
     touch_slip_distance: float = 0.16
 
     # --- camera (part of the physics model: it defines where a touch lands) -
@@ -162,7 +165,6 @@ FIT_SPEC: dict[str, tuple[float, float]] = {
     "touch_gain":            (30.0, 900.0),
     "touch_damping":         (0.5, 60.0),
     "touch_force_max":       (15.0, 400.0),
-    "touch_slip_distance":   (0.04, 0.40),
     "cam_fov_deg":           (25.0, 70.0),
     "cam_distance":          (0.8, 5.0),
     "cam_pitch_deg":         (-85.0, -10.0),
