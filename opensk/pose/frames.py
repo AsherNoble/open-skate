@@ -39,7 +39,7 @@ def _gameplay_filter():
     return gameplay_filter
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Sample:
     path: pathlib.Path
     waypoints: np.ndarray      # (n, 2) normalised screen coords
@@ -49,6 +49,8 @@ class Sample:
     frame_paths: list[pathlib.Path]
     park: str | None
     spin_active: bool
+    video: pathlib.Path | None = None   # frames.mp4, when frames are packed
+    _decoded: list | None = None        # lazily decoded video frames
 
     def recipe(self) -> dict:
         """The gesture, in the schema `TouchModel.run` consumes."""
@@ -58,7 +60,26 @@ class Sample:
                 "delays": []}
 
     def frame(self, i: int) -> np.ndarray:
-        return cv2.imread(str(self.frame_paths[i]))
+        """Frame `i`, from PNGs or from a packed video.
+
+        The dense aligner writes a single `frames.mp4` per sample instead of
+        `frame_NNN.png`, so both layouts exist in the corpora on disk. Video
+        frames are decoded sequentially and cached, because seeking per frame
+        is far slower than a single pass and callers read most of a sample.
+        """
+        if self.video is None:
+            return cv2.imread(str(self.frame_paths[i]))
+        if self._decoded is None:
+            cap = cv2.VideoCapture(str(self.video))
+            frames = []
+            while True:
+                ok, f = cap.read()
+                if not ok:
+                    break
+                frames.append(f)
+            cap.release()
+            object.__setattr__(self, "_decoded", frames)
+        return self._decoded[i]
 
 
 def load_sample(d: pathlib.Path) -> Sample | None:
@@ -69,8 +90,19 @@ def load_sample(d: pathlib.Path) -> Sample | None:
     wp = m.get("waypoints")
     if not wp or len(wp) < 2:
         return None  # params-vector samples carry no explicit waypoints
-    frames = sorted(d.glob("frame_*.png"))
     times = np.asarray(m.get("frame_times", []), dtype=float)
+    if not len(times):
+        return None
+
+    video = d / "frames.mp4"
+    if m.get("frames_format") == "mp4" or video.exists():
+        # One entry per frame so len(frame_paths) still reports frame count.
+        return Sample(d, np.asarray(wp, float), float(m["duration"]),
+                      float(m.get("easing_power", 1.0)), times,
+                      [video] * len(times), m.get("park"),
+                      bool(m.get("spin_active", False)), video)
+
+    frames = sorted(d.glob("frame_*.png"))
     if not len(frames) or len(frames) != len(times):
         return None
     return Sample(d, np.asarray(wp, float), float(m["duration"]),
