@@ -21,7 +21,7 @@ from dataclasses import asdict, dataclass, fields, replace
 class SkateParams:
     # --- deck geometry (a 32" x 8.25" popsicle deck) -----------------------
     deck_length: float = 0.813
-    deck_width: float = 0.210
+    deck_width: float = 0.196
     deck_thickness: float = 0.012
     deck_mass: float = 1.40
     # Wheelbase: axle-to-axle. Real decks run 0.33-0.38 m.
@@ -31,6 +31,18 @@ class SkateParams:
     # i.e. it governs the pop directly. Measured, not fitted.
     kick_angle_deg: float = 19.0
     flat_fraction: float = 0.60
+    # Plan-view shape, fitted to the real deck's silhouette rather than
+    # guessed: 0.196 m wide (a 7.7" deck) where 0.210 was assumed, giving a
+    # rendered width/length profile matching the measured one to RMS 0.041.
+    # Plan-view taper. A popsicle deck is widest at the middle and narrows
+    # toward both tips; measured from real frames the width profile rises from
+    # ~0.22 to a peak ~0.40 and falls to ~0.19 (width/length), where a
+    # constant-width outline renders almost flat. `deck_tip_width_frac` is the
+    # width at the very tip as a fraction of the centre width, and
+    # `deck_taper_power` how sharply it narrows. Visual only -- collision stays
+    # the MJX-safe boxes.
+    deck_tip_width_frac: float = 0.50
+    deck_taper_power: float = 1.6
 
     # --- trucks ------------------------------------------------------------
     truck_mass: float = 0.350

@@ -55,8 +55,11 @@ def test_objective_is_not_flat(usable):
     moves tracks the real frames better. That is a finding about the
     defaults, not a property to encode as a test.
     """
+    # 20 samples, not 8: with 8 the draw is noisy enough to show a 0.002
+    # difference where 40 samples show 0.102, which failed the threshold for
+    # sampling reasons rather than because the objective had gone flat.
     random.seed(1)
-    sub = random.sample(usable, 8)
+    sub = random.sample(usable, 20)
     p = SkateParams()
     inert = p.replace(touch_gain=1e-3, touch_force_max=1e-3)
     assert abs(_mean_iou(sub, p) - _mean_iou(sub, inert)) > 0.01

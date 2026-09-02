@@ -20,6 +20,22 @@ import math
 from ..params import SkateParams
 
 
+def _deck_station(p: SkateParams, u: float, flat_half: float,
+                  kick_len: float, ka: float) -> tuple[float, float]:
+    """(x, z) of a point at normalised station `u` along the deck's centreline.
+
+    u = 0 is the middle, +/-1 the tips. Follows the flat, then rises along the
+    kick, so the visual outline tracks the same shape the collision boxes have.
+    """
+    half = 0.5 * p.deck_length
+    x = u * half
+    if abs(x) <= flat_half:
+        return x, 0.0
+    over = abs(x) - flat_half
+    return (math.copysign(flat_half + over * math.cos(ka), x),
+            over * math.sin(ka))
+
+
 def _kick(p: SkateParams) -> tuple[float, float]:
     """(flat half-length, kick section length) along the deck's long axis."""
     flat_half = 0.5 * p.deck_length * p.flat_fraction
@@ -99,40 +115,45 @@ def build_board(p: SkateParams) -> str:
 
     # A faithful VISUAL outline, separate from the collision boxes.
     #
-    # True Skate's deck is a popsicle: constant width for most of its length,
-    # capped by semicircles of radius half-width. Our collision geometry is
-    # three plain boxes, whose square corners made the rendered silhouette too
-    # blunt -- it showed up as a taper mismatch during camera calibration
-    # (0.86 rendered against 0.69 measured), and taper is the cue that
-    # separates field of view from distance.
+    # True Skate's deck is a popsicle: widest at the middle, narrowing toward
+    # both tips. Measured off real frames the width profile rises to a peak of
+    # ~0.40 (width/length) and falls to ~0.19 at the ends, where a
+    # constant-width outline renders nearly flat and reads too blunt. The
+    # outline is therefore built as a run of slabs whose half-width follows a
+    # taper, plus rounded tips.
     #
-    # Collision keeps the boxes: they are cheap, MJX-safe, and reach the same
-    # tip, so pop mechanics are unchanged. The two outlines differ only at the
-    # four corners. Visual geoms carry contype=0/conaffinity=0 and mass=0, and
-    # sit in geom group 2 so ray casts can exclude them.
-    cap_r = hw
+    # Collision keeps the three plain boxes: cheap, MJX-safe, same tip, so pop
+    # mechanics are unchanged. Visual geoms carry contype=0/conaffinity=0 and
+    # mass=0, and sit in geom group 2 so ray casts can exclude them.
+    n_slab = 11
     vis = ""
-    vis += f"""
-      <geom name="vis_flat" type="box" size="{flat_half:.6f} {hw:.6f} {ht:.6f}"
-            pos="0 0 0" {_VIS} rgba="0.20 0.20 0.24 1"/>"""
-    kick_vis = max(kick_len - cap_r, 1e-4)
-    for name, sgn in (("nose", 1), ("tail", -1)):
-        # Shortened kick box, then a cap centred at its far end.
-        kvx = flat_half + 0.5 * kick_vis * math.cos(ka)
-        kvz = 0.5 * kick_vis * math.sin(ka)
-        ccx = flat_half + kick_vis * math.cos(ka)
-        ccz = kick_vis * math.sin(ka)
+    for i in range(n_slab):
+        u0, u1 = -1.0 + 2.0 * i / n_slab, -1.0 + 2.0 * (i + 1) / n_slab
+        um = 0.5 * (u0 + u1)
+        # Half-width at this station, tapering from the centre to the tips.
+        t = abs(um) ** p.deck_taper_power
+        hw_i = hw * (1.0 - (1.0 - p.deck_tip_width_frac) * t)
+        # Position along the deck, following the flat then the kick.
+        xa, za = _deck_station(p, u0, flat_half, kick_len, ka)
+        xb, zb = _deck_station(p, u1, flat_half, kick_len, ka)
+        cxs, czs = 0.5 * (xa + xb), 0.5 * (za + zb)
+        seg_len = math.hypot(xb - xa, zb - za)
+        pitch = -math.degrees(math.atan2(zb - za, xb - xa))
         vis += f"""
-      <geom name="vis_{name}" type="box"
-            size="{0.5 * kick_vis:.6f} {hw:.6f} {ht:.6f}"
-            pos="{sgn * kvx:.6f} 0 {kvz:.6f}"
+      <geom name="vis_{i}" type="box"
+            size="{0.5 * seg_len:.6f} {hw_i:.6f} {ht:.6f}"
+            pos="{cxs:.6f} 0 {czs:.6f}" euler="0 {pitch:.4f} 0"
+            {_VIS} rgba="0.21 0.20 0.23 1"/>"""
+    # Rounded tips.
+    for name, sgn in (("nose", 1), ("tail", -1)):
+        xt, zt = _deck_station(p, sgn * 1.0, flat_half, kick_len, ka)
+        r_tip = hw * p.deck_tip_width_frac
+        vis += f"""
+      <geom name="vis_{name}_tip" type="ellipsoid"
+            size="{r_tip:.6f} {r_tip:.6f} {ht:.6f}"
+            pos="{xt - sgn * r_tip * math.cos(ka):.6f} 0 {zt - sgn * 0.0:.6f}"
             euler="0 {-sgn * p.kick_angle_deg:.4f} 0"
-            {_VIS} rgba="0.24 0.20 0.20 1"/>
-      <geom name="vis_{name}_cap" type="ellipsoid"
-            size="{cap_r:.6f} {hw:.6f} {ht:.6f}"
-            pos="{sgn * ccx:.6f} 0 {ccz:.6f}"
-            euler="0 {-sgn * p.kick_angle_deg:.4f} 0"
-            {_VIS} rgba="0.24 0.20 0.20 1"/>"""
+            {_VIS} rgba="0.21 0.20 0.23 1"/>"""
 
     return f"""
     <body name="deck" pos="0 0 {ride_height(p):.6f}">
