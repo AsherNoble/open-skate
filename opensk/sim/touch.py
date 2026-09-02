@@ -92,7 +92,7 @@ class TouchModel:
         local_t = t - f.t0
         nx, ny = f.path.position_at(local_t)
 
-        if f.kind is None:  # touch-down: decide what was grabbed, once
+        if f.kind is None:      # touch-down
             kind, hit = self.cast(nx, ny)
             f.kind = kind
             f._prev_screen = np.array([nx, ny])
@@ -100,6 +100,20 @@ class TouchModel:
                 f.local = self.sim.local_point(hit)
                 f.depth = self.camera.depth_of(hit)
             return
+
+        if f.kind == ON_GROUND:
+            # A finger that started off the board can still catch it: real
+            # trick gestures commonly begin on the ground behind the tail and
+            # flick up through the deck. Deciding contact once at touch-down
+            # made 51% of captured trick recipes do NOTHING in simulation --
+            # their start points sit at screen y 0.70-0.88, below a deck
+            # spanning 0.45-0.73 -- while the real board plainly moved. So
+            # contact is re-tested every substep until the finger grabs.
+            kind, hit = self.cast(nx, ny)
+            if kind == ON_DECK:
+                f.kind = ON_DECK
+                f.local = self.sim.local_point(hit)
+                f.depth = self.camera.depth_of(hit)
 
         if f.kind == ON_DECK:
             # The finger holds the MATERIAL point it first touched, and pulls
