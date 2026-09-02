@@ -141,7 +141,11 @@ def build_corpus(limit: int | None = None, *, height: int = 224,
         if limit is not None and len(samples) >= limit:
             break
         seen += 1
-        if tm.cast(float(s.waypoints[0][0]), float(s.waypoints[0][1]))[0] != ON_DECK:
+        try:
+            sx, sy = s.start_point()
+        except Exception:
+            continue
+        if tm.cast(float(sx), float(sy))[0] != ON_DECK:
             continue
         tg = _load_targets(s, h, w, use_cache)
         good = [m for m in tg if m is not None]

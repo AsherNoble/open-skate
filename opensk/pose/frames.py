@@ -72,6 +72,14 @@ class Sample:
                               "easing_power": self.easing_power}],
                 "delays": []}
 
+    def start_point(self) -> np.ndarray:
+        """Where the first finger touches down, in normalised screen coords.
+
+        Goes through `recipe()` rather than `waypoints`, which is empty for
+        recipe-kind samples: those carry a flat CMA-ES vector instead.
+        """
+        return np.asarray(self.recipe()["gestures"][0]["points"][0], dtype=float)
+
     def frame(self, i: int) -> np.ndarray:
         """Frame `i`, from PNGs or from a packed video.
 
