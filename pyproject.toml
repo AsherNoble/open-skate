@@ -5,6 +5,7 @@ description = "A physics-accurate True Skate simulator, fitted to the real game 
 requires-python = ">=3.11"
 dependencies = [
     "mujoco>=3.12",
+    "mujoco-mjx>=3.12",   # MJX-JAX: hardware-agnostic, runs the parity tests
     "numpy>=2.0",
     "scipy>=1.10",
     "cma>=3.3",
