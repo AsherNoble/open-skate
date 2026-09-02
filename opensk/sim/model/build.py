@@ -35,6 +35,15 @@ def ride_height(p: SkateParams) -> float:
 # Axle centre to deck underside for a standard truck. Measured, not fitted.
 TRUCK_DROP = 0.053
 
+# Attributes shared by every visual-only geom: no contact, no inertia, and
+# geom group 2 so `mj_ray` can be told to ignore them.
+_VIS = 'contype="0" conaffinity="0" mass="0" group="2"'
+
+# Deck collision boxes sit in group 3, which MuJoCo's renderer hides by
+# default. They are coincident with the visual popsicle outline and would
+# otherwise draw on top of it, blanking the rounded caps entirely.
+_COL = 'group="3"' 
+
 
 def build_board(p: SkateParams) -> str:
     """The board body, as an MJCF fragment rooted at a free joint."""
@@ -88,19 +97,56 @@ def build_board(p: SkateParams) -> str:
         </body>
       </body>"""
 
+    # A faithful VISUAL outline, separate from the collision boxes.
+    #
+    # True Skate's deck is a popsicle: constant width for most of its length,
+    # capped by semicircles of radius half-width. Our collision geometry is
+    # three plain boxes, whose square corners made the rendered silhouette too
+    # blunt -- it showed up as a taper mismatch during camera calibration
+    # (0.86 rendered against 0.69 measured), and taper is the cue that
+    # separates field of view from distance.
+    #
+    # Collision keeps the boxes: they are cheap, MJX-safe, and reach the same
+    # tip, so pop mechanics are unchanged. The two outlines differ only at the
+    # four corners. Visual geoms carry contype=0/conaffinity=0 and mass=0, and
+    # sit in geom group 2 so ray casts can exclude them.
+    cap_r = hw
+    vis = ""
+    vis += f"""
+      <geom name="vis_flat" type="box" size="{flat_half:.6f} {hw:.6f} {ht:.6f}"
+            pos="0 0 0" {_VIS} rgba="0.20 0.20 0.24 1"/>"""
+    kick_vis = max(kick_len - cap_r, 1e-4)
+    for name, sgn in (("nose", 1), ("tail", -1)):
+        # Shortened kick box, then a cap centred at its far end.
+        kvx = flat_half + 0.5 * kick_vis * math.cos(ka)
+        kvz = 0.5 * kick_vis * math.sin(ka)
+        ccx = flat_half + kick_vis * math.cos(ka)
+        ccz = kick_vis * math.sin(ka)
+        vis += f"""
+      <geom name="vis_{name}" type="box"
+            size="{0.5 * kick_vis:.6f} {hw:.6f} {ht:.6f}"
+            pos="{sgn * kvx:.6f} 0 {kvz:.6f}"
+            euler="0 {-sgn * p.kick_angle_deg:.4f} 0"
+            {_VIS} rgba="0.24 0.20 0.20 1"/>
+      <geom name="vis_{name}_cap" type="ellipsoid"
+            size="{cap_r:.6f} {hw:.6f} {ht:.6f}"
+            pos="{sgn * ccx:.6f} 0 {ccz:.6f}"
+            euler="0 {-sgn * p.kick_angle_deg:.4f} 0"
+            {_VIS} rgba="0.24 0.20 0.20 1"/>"""
+
     return f"""
     <body name="deck" pos="0 0 {ride_height(p):.6f}">
-      <freejoint name="board"/>
-      <geom name="deck_flat" type="box" size="{flat_half:.6f} {hw:.6f} {ht:.6f}"
+      <freejoint name="board"/>{vis}
+      <geom name="deck_flat" {_COL} type="box" size="{flat_half:.6f} {hw:.6f} {ht:.6f}"
             pos="0 0 0" mass="{flat_mass:.6f}"
             friction="{p.deck_friction_slide:.6f} 0.005 0.0001"
             condim="3" {_sol(p)} rgba="0.20 0.20 0.24 1"/>
-      <geom name="deck_nose" type="box" size="{0.5 * kick_len:.6f} {hw:.6f} {ht:.6f}"
+      <geom name="deck_nose" {_COL} type="box" size="{0.5 * kick_len:.6f} {hw:.6f} {ht:.6f}"
             pos="{kx:.6f} 0 {kz:.6f}" euler="0 -{p.kick_angle_deg:.4f} 0"
             mass="{kick_mass:.6f}"
             friction="{p.deck_friction_slide:.6f} 0.005 0.0001"
             condim="3" {_sol(p)} rgba="0.24 0.20 0.20 1"/>
-      <geom name="deck_tail" type="box" size="{0.5 * kick_len:.6f} {hw:.6f} {ht:.6f}"
+      <geom name="deck_tail" {_COL} type="box" size="{0.5 * kick_len:.6f} {hw:.6f} {ht:.6f}"
             pos="-{kx:.6f} 0 {kz:.6f}" euler="0 {p.kick_angle_deg:.4f} 0"
             mass="{kick_mass:.6f}"
             friction="{p.deck_friction_slide:.6f} 0.005 0.0001"

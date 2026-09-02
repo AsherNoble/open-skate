@@ -42,8 +42,16 @@ class SkateSim:
         self._steer_q = [M.jnt_qposadr[n(M, O.mjOBJ_JOINT, j)] for j in _STEER_JOINTS]
         self._spin_v = [M.jnt_dofadr[n(M, O.mjOBJ_JOINT, j)] for j in _SPIN_JOINTS]
         self._wheel_gids = {n(M, O.mjOBJ_GEOM, w): i for i, w in enumerate(WHEELS)}
-        self._deck_gids = {n(M, O.mjOBJ_GEOM, g)
-                           for g in ("deck_flat", "deck_nose", "deck_tail")}
+        def _named(prefix):
+            return {i for i in range(M.ngeom)
+                    if (mujoco.mj_id2name(M, O.mjOBJ_GEOM, i) or "").startswith(prefix)}
+
+        # Collision geoms of the deck: what contact and ray casts see.
+        self._deck_gids = _named("deck_")
+        # Visual-only popsicle outline: what the silhouette comparison sees.
+        # Kept apart so the faithful outline never affects the physics and the
+        # cheap MJX-safe boxes never affect the rendered shape.
+        self._deck_visual_gids = _named("vis_")
         self.reset()
 
     # -- lifecycle ---------------------------------------------------------

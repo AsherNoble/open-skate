@@ -86,22 +86,25 @@ class SkateParams:
 
     # --- camera (part of the physics model: it defines where a touch lands) -
     # Fitted to the real game: 128 resting-board frames, matching silhouette
-    # length, width and cy to under one percent. Taper is NOT matched (0.86 vs
-    # 0.69) because our deck outline is three boxes where True Skate's is a
-    # rounded popsicle with raised kicktails, and taper is shape-sensitive.
+    # length, width and cy to under one percent. Taper is NOT matched (0.82 vs
+    # 0.69) and a faithful popsicle outline did not fix it -- the real mask is
+    # a dark-pixel threshold that swallows the board's SHADOW near the lower
+    # end, widening the near third, while our rendered mask is exact and
+    # shadowless. Taper is a segmentation artefact here, not a camera cue; it
+    # stays in the objective only because its own MAD down-weights it ~15x.
     # See pose/calibrate_camera.py.
-    cam_fov_deg: float = 43.309
+    cam_fov_deg: float = 42.883
     # The camera AIMS AT the board, so its height is not free: it follows from
     # distance and pitch. Carrying an independent height as well would give
     # three parameters for two degrees of freedom and leave sysid a flat
     # direction to wander along.
-    cam_distance: float = 2.830
-    cam_pitch_deg: float = -41.943
+    cam_distance: float = 2.772
+    cam_pitch_deg: float = -41.236
     # The camera aims this far AHEAD of the board along its heading, which is
     # what pushes the board below screen centre (measured at cy = 0.582, not
     # 0.5) so the rider can see what is coming. Identifiable, unlike an
     # independent camera height.
-    cam_lead_m: float = 0.287
+    cam_lead_m: float = 0.281
     # First-order follow lag, seconds. 0 = rigidly locked to the board.
     cam_follow_tau: float = 0.18
     # Screen aspect (width/height). All three rig devices are 19.5:9 to within

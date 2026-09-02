@@ -65,6 +65,13 @@ class TouchModel:
         self.camera.reset(st.pos, board_yaw(st.quat))
         self._deck_gids = sim._deck_gids
         self._geomid = np.zeros(1, dtype=np.int32)
+        # Ray casts see collision geometry only: group 0 (ground, trucks,
+        # wheels) and group 3 (the deck's collision boxes). Group 2 is the
+        # visual popsicle outline, which has no contact at all and must not
+        # intercept touches.
+        self._geomgroup = np.zeros(6, dtype=np.uint8)
+        self._geomgroup[0] = 1
+        self._geomgroup[3] = 1
 
     # -- ray casting -------------------------------------------------------
 
@@ -72,7 +79,7 @@ class TouchModel:
         """Screen point -> (what it hit, world hit point)."""
         origin, direction = self.camera.ray(nx, ny)
         dist = mujoco.mj_ray(self.sim.model, self.sim.data, origin, direction,
-                             None, 1, -1, self._geomid)
+                             self._geomgroup, 1, -1, self._geomid)
         if dist < 0:
             return MISSED, None
         hit = origin + direction * dist

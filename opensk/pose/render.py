@@ -60,5 +60,6 @@ class SceneRenderer:
             seg = self._renderer.render()[:, :, 0]
         finally:
             self._renderer.disable_segmentation_rendering()
-        board_geoms = set(self.sim._deck_gids)
-        return np.isin(seg, list(board_geoms))
+        # The VISUAL outline, not the collision boxes: the silhouette this is
+        # compared against is a picture of the real deck, which is a popsicle.
+        return np.isin(seg, list(self.sim._deck_visual_gids))
