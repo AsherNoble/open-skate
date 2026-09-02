@@ -204,6 +204,31 @@ def with_camera(params: SkateParams, corpus: Corpus) -> SkateParams:
     return params.replace(**corpus.camera) if corpus.camera else params
 
 
+def mean_activity(params: SkateParams, corpus: Corpus, *,
+                  subsample: int | None = None, rng=None) -> float:
+    """Mean departure-curve error. LOWER is better; this is what fit minimises.
+
+    Replaces gain as the fitting objective. Gain (and raw overlap before it)
+    could not reward an approximate flip -- a board flipping at 43%, closest to
+    the real one, scored WORSE than an inert board -- so every search retreated
+    to stillness.
+    """
+    params = with_camera(params, corpus)
+    sim = SkateSim(params)
+    renderer = SceneRenderer(sim, height=corpus.height)
+    idx = range(len(corpus.samples))
+    if subsample is not None and subsample < len(corpus.samples):
+        rng = rng or np.random.default_rng(0)
+        idx = rng.choice(len(corpus.samples), subsample, replace=False)
+    vals = []
+    for i in idx:
+        sc = score_sample(corpus.samples[i], params, targets=corpus.targets[i],
+                          sim=sim, renderer=renderer)
+        if sc.n_scored:
+            vals.append(sc.activity_loss)
+    return float(np.mean(vals)) if vals else 1.0
+
+
 def mean_gain(params: SkateParams, corpus: Corpus, *,
               subsample: int | None = None, rng=None) -> float:
     """Mean overlap earned ABOVE a stationary board. Inertness scores 0.
@@ -292,8 +317,10 @@ def fit(corpus: Corpus, *, evals: int = 300, seed: int = 0,
         losses = []
         for x in xs:
             p = to_params(x)
-            iou = mean_gain(p, corpus, subsample=subsample, rng=obj_rng)
-            losses.append(-iou)
+            # Minimise departure-curve error, not overlap. See mean_activity.
+            loss = mean_activity(p, corpus, subsample=subsample, rng=obj_rng)
+            iou = -loss
+            losses.append(loss)
             n += 1
             if iou > best_iou:
                 best_iou, best_params = iou, p
@@ -304,20 +331,21 @@ def fit(corpus: Corpus, *, evals: int = 300, seed: int = 0,
                 log.flush()
         es.tell(xs, losses)
         if verbose:
-            print(f"  evals {n:4d}  best train gain {best_iou:+.4f}"
+            print(f"  evals {n:4d}  best train activity {-best_iou:.4f}"
                   f"  ({time.time() - t0:.0f}s)")
 
-    report = {"train_gain": best_iou, "evals": n,
+    report = {"train_activity": -best_iou, "evals": n,
               "seconds": time.time() - t0,
               "params": {k: getattr(best_params, k) for k in PHYSICS_KEYS}}
     if held is not None:
         # Gain on the full held-out set. Positive means the fitted physics
         # reproduces real motion better than not moving at all; zero or
         # negative means it does not, whatever the raw overlap says.
+        report["held_activity"] = mean_activity(best_params, held)
+        report["held_activity_inert"] = mean_activity(
+            best_params.replace(touch_gain=1e-3, touch_force_max=1e-3), held)
         report["held_gain"] = mean_gain(best_params, held)
         report["held_iou"] = mean_iou(best_params, held)
-        report["held_gain_inert"] = mean_gain(
-            best_params.replace(touch_gain=1e-3, touch_force_max=1e-3), held)
     if log:
         log.write(json.dumps({"type": "result", **report}) + "\n")
         log.close()
