@@ -53,6 +53,9 @@ class Corpus:
     height: int = 224
     width: int = 103
     park: str | None = None   # MJCF park fragment these samples were captured in
+    # Did the CAPTURE fire a push before the gesture? XCTest recipe samples go
+    # through execute_gesture_params, whose static_push defaults to True.
+    push: bool = False
     # Camera fitted to THIS corpus. True Skate lets the player move the camera,
     # so it is a per-capture-session property, not a constant: the real board is
     # 0.2857 of frame height in the flick corpus and 0.1154 in the trick
@@ -74,7 +77,8 @@ class Corpus:
         pick = lambda ii: Corpus(samples=[self.samples[i] for i in ii],
                                  targets=[self.targets[i] for i in ii],
                                  height=self.height, width=self.width,
-                                 park=self.park, camera=self.camera)
+                                 park=self.park, camera=self.camera,
+                                 push=self.push)
         return pick(train), pick(held)
 
 
@@ -153,7 +157,7 @@ def build_corpus(limit: int | None = None, *, height: int = 224,
                  min_frames: int = 4, require_motion: bool = True,
                  use_cache: bool = True, root: pathlib.Path | None = None,
                  camera: dict | None = None, park: str | None = None,
-                 verbose: bool = True) -> Corpus:
+                 push: bool = False, verbose: bool = True) -> Corpus:
     """Segment usable samples once, up front.
 
     Three filters, each measured rather than guessed:
@@ -198,7 +202,7 @@ def build_corpus(limit: int | None = None, *, height: int = 224,
     if verbose:
         print(f"corpus: {len(samples)} usable of {seen} scanned")
     return Corpus(samples=samples, targets=targets, height=h, width=w,
-                  park=park, camera=camera)
+                  park=park, camera=camera, push=push)
 
 
 def with_camera(params: SkateParams, corpus: Corpus) -> SkateParams:
@@ -228,7 +232,7 @@ def mean_combined(params: SkateParams, corpus: Corpus, *,
     vals = []
     for i in idx:
         sc = score_sample(corpus.samples[i], params, targets=corpus.targets[i],
-                          sim=sim, renderer=renderer)
+                          sim=sim, renderer=renderer, push=corpus.push)
         if sc.n_scored:
             vals.append(sc.combined_loss)
     return float(np.mean(vals)) if vals else 2.0
@@ -253,7 +257,7 @@ def mean_activity(params: SkateParams, corpus: Corpus, *,
     vals = []
     for i in idx:
         sc = score_sample(corpus.samples[i], params, targets=corpus.targets[i],
-                          sim=sim, renderer=renderer)
+                          sim=sim, renderer=renderer, push=corpus.push)
         if sc.n_scored:
             vals.append(sc.activity_loss)
     return float(np.mean(vals)) if vals else 1.0
@@ -280,7 +284,7 @@ def mean_gain(params: SkateParams, corpus: Corpus, *,
     vals = []
     for i in idx:
         sc = score_sample(corpus.samples[i], params, targets=corpus.targets[i],
-                          sim=sim, renderer=renderer)
+                          sim=sim, renderer=renderer, push=corpus.push)
         if sc.n_scored:
             vals.append(sc.gain)
     return float(np.mean(vals)) if vals else 0.0
@@ -308,7 +312,7 @@ def mean_iou(params: SkateParams, corpus: Corpus, *,
     vals = []
     for i in idx:
         sc = score_sample(corpus.samples[i], params, targets=corpus.targets[i],
-                          sim=sim, renderer=renderer)
+                          sim=sim, renderer=renderer, push=corpus.push)
         if sc.n_scored:
             vals.append(sc.iou)
     return float(np.mean(vals)) if vals else 0.0

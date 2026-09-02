@@ -189,13 +189,21 @@ def score_sample(sample: Sample, params: SkateParams | None = None, *,
                  sim: SkateSim | None = None,
                  renderer: SceneRenderer | None = None,
                  time_offset: float = 0.0,
-                 park: str | None = None) -> SampleScore:
+                 park: str | None = None,
+                 push: bool = False) -> SampleScore:
     """Simulate `sample`'s gesture and score silhouette overlap per frame.
 
-    Replay conventions are the capture's, not ours: the board is reset to the
-    anchor and settled, and there is NO push — `collect_self_labeled_traces.py`
-    resets every gesture and never pushes. Replaying with a push carries the
-    board out from under the gesture entirely.
+    Replay conventions must match the CAPTURE, and the two corpora differ:
+
+      * `self_labeled_traces` (flicks) calls `curved_drag` directly and never
+        pushes — replay with push=False.
+      * XCTest `recipe` samples go through `execute_gesture_params`, whose
+        `static_push` argument DEFAULTS TO TRUE and which the collector does
+        not override — so the real board was already rolling when the gesture
+        fired. Replay those with push=True.
+
+    Getting this wrong is first-order: a rolling board and a stationary one
+    respond to the same gesture completely differently.
     """
     params = params or SkateParams()
     # The real board shares its park with rails and ledges: the round-trip test
@@ -243,7 +251,7 @@ def score_sample(sample: Sample, params: SkateParams | None = None, *,
     first_real = targets[want[0][1]]
     t_sim = 0.0
     # Run the gesture and the settle in one pass, sampling as timestamps pass.
-    schedule = touch.run_iter(sample.recipe(), push=False,
+    schedule = touch.run_iter(sample.recipe(), push=push,
                               settle=max(0.0, float(want[-1][0]) + 0.05))
     k = 0
     for st in schedule:
