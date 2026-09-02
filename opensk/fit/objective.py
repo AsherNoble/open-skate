@@ -188,7 +188,8 @@ def score_sample(sample: Sample, params: SkateParams | None = None, *,
                  height: int = 224, targets=None,
                  sim: SkateSim | None = None,
                  renderer: SceneRenderer | None = None,
-                 time_offset: float = 0.0) -> SampleScore:
+                 time_offset: float = 0.0,
+                 park: str | None = None) -> SampleScore:
     """Simulate `sample`'s gesture and score silhouette overlap per frame.
 
     Replay conventions are the capture's, not ours: the board is reset to the
@@ -197,7 +198,10 @@ def score_sample(sample: Sample, params: SkateParams | None = None, *,
     board out from under the gesture entirely.
     """
     params = params or SkateParams()
-    sim = sim or SkateSim(params)
+    # The real board shares its park with rails and ledges: the round-trip test
+    # returned lipslides and boardslides, which cannot happen on bare ground.
+    # Replaying on FLAT_PARK removes obstacles the real board is hitting.
+    sim = sim or (SkateSim(params, park) if park else SkateSim(params))
     renderer = renderer or SceneRenderer(sim, height=height)
     if targets is None:
         targets, _ = real_masks(sample, renderer.height, renderer.width)

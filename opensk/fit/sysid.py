@@ -52,6 +52,7 @@ class Corpus:
     targets: list[list]
     height: int = 224
     width: int = 103
+    park: str | None = None   # MJCF park fragment these samples were captured in
     # Camera fitted to THIS corpus. True Skate lets the player move the camera,
     # so it is a per-capture-session property, not a constant: the real board is
     # 0.2857 of frame height in the flick corpus and 0.1154 in the trick
@@ -68,9 +69,12 @@ class Corpus:
         idx = rng.permutation(len(self.samples))
         n = int(round(frac * len(idx)))
         held, train = idx[:n], idx[n:]
-        pick = lambda ii: Corpus([self.samples[i] for i in ii],
-                                 [self.targets[i] for i in ii],
-                                 self.height, self.width, self.camera)
+        # Keyword args: `park` was inserted before `camera` in the field list,
+        # so positional construction silently swapped the two.
+        pick = lambda ii: Corpus(samples=[self.samples[i] for i in ii],
+                                 targets=[self.targets[i] for i in ii],
+                                 height=self.height, width=self.width,
+                                 park=self.park, camera=self.camera)
         return pick(train), pick(held)
 
 
@@ -148,7 +152,8 @@ def _touches_deck(sample: Sample, tm: TouchModel, n: int = 30) -> bool:
 def build_corpus(limit: int | None = None, *, height: int = 224,
                  min_frames: int = 4, require_motion: bool = True,
                  use_cache: bool = True, root: pathlib.Path | None = None,
-                 camera: dict | None = None, verbose: bool = True) -> Corpus:
+                 camera: dict | None = None, park: str | None = None,
+                 verbose: bool = True) -> Corpus:
     """Segment usable samples once, up front.
 
     Three filters, each measured rather than guessed:
@@ -159,7 +164,7 @@ def build_corpus(limit: int | None = None, *, height: int = 224,
       * the real board must actually move (`require_motion`), or the sample
         rewards a simulation that does nothing.
     """
-    probe = SkateSim()
+    probe = SkateSim(SkateParams(), park) if park else SkateSim()
     probe.reset(seed=0)
     probe.step(200)
     tm = TouchModel(probe)
@@ -192,7 +197,8 @@ def build_corpus(limit: int | None = None, *, height: int = 224,
         targets.append(tg)
     if verbose:
         print(f"corpus: {len(samples)} usable of {seen} scanned")
-    return Corpus(samples, targets, h, w, camera)
+    return Corpus(samples=samples, targets=targets, height=h, width=w,
+                  park=park, camera=camera)
 
 
 def with_camera(params: SkateParams, corpus: Corpus) -> SkateParams:
@@ -213,7 +219,7 @@ def mean_combined(params: SkateParams, corpus: Corpus, *,
     shove-it on the real device and nothing in the objective could tell.
     """
     params = with_camera(params, corpus)
-    sim = SkateSim(params)
+    sim = SkateSim(params, corpus.park) if corpus.park else SkateSim(params)
     renderer = SceneRenderer(sim, height=corpus.height)
     idx = range(len(corpus.samples))
     if subsample is not None and subsample < len(corpus.samples):
@@ -238,7 +244,7 @@ def mean_activity(params: SkateParams, corpus: Corpus, *,
     to stillness.
     """
     params = with_camera(params, corpus)
-    sim = SkateSim(params)
+    sim = SkateSim(params, corpus.park) if corpus.park else SkateSim(params)
     renderer = SceneRenderer(sim, height=corpus.height)
     idx = range(len(corpus.samples))
     if subsample is not None and subsample < len(corpus.samples):
@@ -265,7 +271,7 @@ def mean_gain(params: SkateParams, corpus: Corpus, *,
     simply being roughly where it started.
     """
     params = with_camera(params, corpus)
-    sim = SkateSim(params)
+    sim = SkateSim(params, corpus.park) if corpus.park else SkateSim(params)
     renderer = SceneRenderer(sim, height=corpus.height)
     idx = range(len(corpus.samples))
     if subsample is not None and subsample < len(corpus.samples):
@@ -293,7 +299,7 @@ def mean_iou(params: SkateParams, corpus: Corpus, *,
     fit that takes an hour and one that takes a day.
     """
     params = with_camera(params, corpus)
-    sim = SkateSim(params)
+    sim = SkateSim(params, corpus.park) if corpus.park else SkateSim(params)
     renderer = SceneRenderer(sim, height=corpus.height)
     idx = range(len(corpus.samples))
     if subsample is not None and subsample < len(corpus.samples):
