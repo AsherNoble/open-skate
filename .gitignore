@@ -8,3 +8,4 @@ fits/
 *.pth
 .DS_Store
 .pytest_cache/
+cache/
