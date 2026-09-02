@@ -93,7 +93,8 @@ def real_masks(sample: Sample, height: int, width: int
 def score_sample(sample: Sample, params: SkateParams | None = None, *,
                  height: int = 224, targets=None,
                  sim: SkateSim | None = None,
-                 renderer: SceneRenderer | None = None) -> SampleScore:
+                 renderer: SceneRenderer | None = None,
+                 time_offset: float = 0.0) -> SampleScore:
     """Simulate `sample`'s gesture and score silhouette overlap per frame.
 
     Replay conventions are the capture's, not ours: the board is reset to the
@@ -122,7 +123,13 @@ def score_sample(sample: Sample, params: SkateParams | None = None, *,
 
     # Frame timestamps are relative to the gesture's start, and the earliest is
     # already positive, so the sim starts at the gesture and is sampled forward.
-    times = np.asarray(sample.frame_times, dtype=float)
+    # `time_offset` shifts the sim clock relative to the frame timestamps, to
+    # absorb command->pixel latency: the delay between the host issuing a W3C
+    # action and the board actually moving on screen. The rig documents this
+    # offset as UNCALIBRATED and assumed zero; if it is really 100-200 ms then
+    # at 30 fps every trajectory is compared against frames 3-6 too early, and
+    # even correct physics would score no better than not moving.
+    times = np.asarray(sample.frame_times, dtype=float) - float(time_offset)
     want = [(t, i) for i, t in enumerate(times) if targets[i] is not None]
     if not want:
         return SampleScore(0.0, np.zeros(0), 0, len(times), 0.0)
