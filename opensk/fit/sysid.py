@@ -204,6 +204,30 @@ def with_camera(params: SkateParams, corpus: Corpus) -> SkateParams:
     return params.replace(**corpus.camera) if corpus.camera else params
 
 
+def mean_combined(params: SkateParams, corpus: Corpus, *,
+                  subsample: int | None = None, rng=None) -> float:
+    """Departure error PLUS axis error. Lower is better; fit minimises this.
+
+    Departure alone is blind to the axis of rotation, which the round-trip
+    transfer test caught: a gesture optimised for a 346 degree roll produced a
+    shove-it on the real device and nothing in the objective could tell.
+    """
+    params = with_camera(params, corpus)
+    sim = SkateSim(params)
+    renderer = SceneRenderer(sim, height=corpus.height)
+    idx = range(len(corpus.samples))
+    if subsample is not None and subsample < len(corpus.samples):
+        rng = rng or np.random.default_rng(0)
+        idx = rng.choice(len(corpus.samples), subsample, replace=False)
+    vals = []
+    for i in idx:
+        sc = score_sample(corpus.samples[i], params, targets=corpus.targets[i],
+                          sim=sim, renderer=renderer)
+        if sc.n_scored:
+            vals.append(sc.combined_loss)
+    return float(np.mean(vals)) if vals else 2.0
+
+
 def mean_activity(params: SkateParams, corpus: Corpus, *,
                   subsample: int | None = None, rng=None) -> float:
     """Mean departure-curve error. LOWER is better; this is what fit minimises.
@@ -318,7 +342,7 @@ def fit(corpus: Corpus, *, evals: int = 300, seed: int = 0,
         for x in xs:
             p = to_params(x)
             # Minimise departure-curve error, not overlap. See mean_activity.
-            loss = mean_activity(p, corpus, subsample=subsample, rng=obj_rng)
+            loss = mean_combined(p, corpus, subsample=subsample, rng=obj_rng)
             iou = -loss
             losses.append(loss)
             n += 1

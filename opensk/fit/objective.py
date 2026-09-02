@@ -45,10 +45,39 @@ class SampleScore:
     n_frames: int
     static_iou: float = 0.0    # same frames, board left at its initial pose
     activity_rms: float = 0.0  # error between departure-from-start curves
+    shape_rms: float = 0.0     # axis-turn and area-collapse disagreement
 
     @property
     def loss(self) -> float:
         return 1.0 - self.iou
+
+    @property
+    def combined_loss(self) -> float:
+        """Departure error plus axis error. This is what fitting minimises.
+
+        Departure alone is BLIND TO THE AXIS OF ROTATION: it measures how far a
+        silhouette has moved from its start, never in which sense. The
+        round-trip transfer test found exactly that hole -- a gesture optimised
+        here for a 346 degree roll produced a POP SHOVE-IT on the real device,
+        rotation about the board's normal instead of its long axis, and the
+        objective could not have noticed.
+
+        The axis is visible in the mask without any pose estimate, but it must
+        be compared as a PHASE-TOLERANT AGGREGATE, not frame by frame. Compared
+        per frame it repeats the original mistake: a rotating board scored
+        worse than an inert one (0.3688 against 0.3228), because a rotation at
+        the wrong phase disagrees everywhere.
+
+        Two aggregates carry the axis and separate cleanly on real data:
+          * total unwrapped TURN of the silhouette's long axis -- a shove-it
+            turns it, a flip does not;
+          * the minimum projected AREA relative to the first frame -- a flip
+            goes edge-on and the area collapses, a shove-it keeps it.
+
+        Measured: real turn 370 deg / dip 0.098; inert 90 deg / 0.301; a
+        flip-heavy board 335 deg / 0.185, i.e. closest to real on both.
+        """
+        return self.activity_rms + self.shape_rms
 
     @property
     def activity_loss(self) -> float:
@@ -81,6 +110,51 @@ class SampleScore:
         only reproducing the real motion can earn credit.
         """
         return self.iou - self.static_iou
+
+
+def _axis_shape(mask: np.ndarray) -> np.ndarray:
+    """(cos 2a, sin 2a, elongation/6) of a silhouette's long axis.
+
+    Double angle because a long axis has no head or tail: it is defined mod
+    180 degrees, and the raw angle wraps. Elongation is scaled so all three
+    components sit on a comparable range and none dominates the error.
+    """
+    import cv2 as _cv2
+
+    ys, xs = np.nonzero(mask)
+    if len(xs) < 20:
+        return np.zeros(3)
+    pts = np.stack([xs, ys], 1).astype(np.float32)
+    (_, _), (rw, rh), ang = _cv2.minAreaRect(pts)
+    length, width = max(rw, rh), min(rw, rh)
+    a = np.radians(ang if rw >= rh else ang + 90.0)
+    return np.array([np.cos(2 * a), np.sin(2 * a),
+                     min(length / max(width, 1e-6), 6.0) / 6.0])
+
+
+def _axis_summary(masks) -> tuple[float, float]:
+    """(total axis turn in turns, minimum area relative to the first frame).
+
+    Both are aggregates over the whole trajectory, so neither depends on the
+    simulation and the real capture being in phase.
+    """
+    angles, areas = [], []
+    for m in masks:
+        sh = _axis_shape(m)
+        angles.append(0.5 * np.arctan2(sh[1], sh[0]))
+        areas.append(float(np.count_nonzero(m)))
+    # Unwrap on the doubled angle: a long axis is defined mod 180 degrees.
+    a = np.unwrap(np.asarray(angles) * 2.0) / 2.0
+    turn = float(np.abs(np.diff(a)).sum()) / (2.0 * np.pi)
+    ar = np.asarray(areas)
+    dip = float(ar.min() / max(ar[0], 1.0))
+    return turn, dip
+
+
+def _axis_disagreement(sim_masks, real_masks_seq) -> float:
+    st, sd = _axis_summary(sim_masks)
+    rt, rd = _axis_summary(real_masks_seq)
+    return abs(st - rt) + abs(sd - rd)
 
 
 def real_masks(sample: Sample, height: int, width: int
@@ -160,6 +234,8 @@ def score_sample(sample: Sample, params: SkateParams | None = None, *,
     statics = np.zeros(len(want))
     sim_depart = np.zeros(len(want))     # 1 - IoU(sim_t, sim_0)
     real_depart = np.zeros(len(want))    # 1 - IoU(real_t, real_0)
+    sim_masks: list = []
+    real_masks_seq: list = []
     first_real = targets[want[0][1]]
     t_sim = 0.0
     # Run the gesture and the settle in one pass, sampling as timestamps pass.
@@ -184,12 +260,15 @@ def score_sample(sample: Sample, params: SkateParams | None = None, *,
             ru = np.count_nonzero(tgt | first_real)
             real_depart[k] = 1.0 - (0.0 if ru == 0
                                     else np.count_nonzero(tgt & first_real) / ru)
+            sim_masks.append(m)
+            real_masks_seq.append(tgt)
             k += 1
         if k >= len(want):
             break
 
     rms = (float(np.sqrt(((sim_depart[:k] - real_depart[:k]) ** 2).mean()))
            if k else 0.0)
+    shape = _axis_disagreement(sim_masks, real_masks_seq) if k >= 6 else 0.0
     return SampleScore(float(ious[:k].mean()) if k else 0.0,
                        ious[:k], int(k), len(times),
-                       float(statics[:k].mean()) if k else 0.0, rms)
+                       float(statics[:k].mean()) if k else 0.0, rms, shape)
