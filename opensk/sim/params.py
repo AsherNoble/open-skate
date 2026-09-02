@@ -93,18 +93,18 @@ class SkateParams:
     # shadowless. Taper is a segmentation artefact here, not a camera cue; it
     # stays in the objective only because its own MAD down-weights it ~15x.
     # See pose/calibrate_camera.py.
-    cam_fov_deg: float = 42.883
+    cam_fov_deg: float = 40.182
     # The camera AIMS AT the board, so its height is not free: it follows from
     # distance and pitch. Carrying an independent height as well would give
     # three parameters for two degrees of freedom and leave sysid a flat
     # direction to wander along.
-    cam_distance: float = 2.772
-    cam_pitch_deg: float = -41.236
+    cam_distance: float = 2.560
+    cam_pitch_deg: float = -35.552
     # The camera aims this far AHEAD of the board along its heading, which is
     # what pushes the board below screen centre (measured at cy = 0.582, not
     # 0.5) so the rider can see what is coming. Identifiable, unlike an
     # independent camera height.
-    cam_lead_m: float = 0.281
+    cam_lead_m: float = 0.283
     # First-order follow lag, seconds. 0 = rigidly locked to the board.
     cam_follow_tau: float = 0.18
     # Screen aspect (width/height). All three rig devices are 19.5:9 to within

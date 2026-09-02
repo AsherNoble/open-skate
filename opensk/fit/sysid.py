@@ -77,11 +77,17 @@ class Corpus:
 CACHE_DIR = pathlib.Path(__file__).resolve().parents[2] / "cache" / "masks"
 
 
+# Bump when segmentation changes shape. Cached masks are derived from
+# board_mask, so a change there invalidates every entry -- and a stale cache is
+# silent: the fit simply optimises against masks that no longer exist.
+SEGMENTATION_VERSION = 2
+
+
 def _cache_path(sample: Sample, h: int, w: int) -> pathlib.Path:
     # Include the grandparent so samples from different corpora with the same
     # session/sample names cannot collide in the cache.
-    key = (f"{sample.path.parent.parent.name}__{sample.path.parent.name}"
-           f"__{sample.path.name}__{h}x{w}.npz")
+    key = (f"v{SEGMENTATION_VERSION}__{sample.path.parent.parent.name}"
+           f"__{sample.path.parent.name}__{sample.path.name}__{h}x{w}.npz")
     return CACHE_DIR / key
 
 
