@@ -48,3 +48,42 @@ a strictly stronger claim and it is not yet supported.
 2. Replay against the SLS park rather than flat ground, so obstacle interaction is
    represented.
 3. Re-run this test after both. It is cheap and it is the only test that matters.
+
+
+---
+
+# Round-trip v2 — after the axis-aware objective (3 Sep 2026)
+
+**Result: PARTIAL. The rotation axis now transfers. Landing does not.**
+
+Refitted physics (held combined 0.9296 vs inert 2.1261), new gesture optimised for
++360° roll: sim gave **+370° roll, 20 cm pop, 0.54 s airborne, landing upright**.
+10 trials on iPhone_XR, reset each time, no push.
+
+| outcome | v1 (before) | v2 (after) |
+|---|---|---|
+| **flips — correct axis** | **0/8** | **2/10** |
+| slides (board reaches rails) | 4/8 | 6/10 |
+| shove-it (wrong axis) | 1/8 | 0/10 |
+| nothing detected | 3/8 | 2/10 |
+| **landed** | 0 | **0** |
+
+v2 flips: `QUAD KICKFLIP + VARIAL TRIPLE KICKFLIP`, `720 DOUBLE FLIP` — both
+rotations about the deck's long axis, which is what the simulation asked for. The
+wrong-axis shove-it that motivated the fix did not recur.
+
+## What this supports, and what it does not
+- **Supported:** making the objective axis-aware changed real-device behaviour in the
+  predicted direction. Flips appear where there were none.
+- **NOT supported:** transfer. 2/10 is weak, nothing landed, and the dominant outcome
+  is still slides — the board travelling into rails, i.e. the environment/translation
+  mismatch, untouched by this change.
+- The flips reported are *multi*-rotation (quad, 720 double) where the sim asked for
+  one. The magnitude is over, not merely noisy.
+
+## Next
+1. **Translation is the dominant remaining error.** Six of ten trials ended on a rail.
+   The sim replays on flat ground and cannot see translation anyway (board-locked
+   camera), so nothing in the fit constrains it.
+2. Over-rotation: the real board turns several times where the sim predicts one.
+3. A faithful replica of the capture park would remove the obstacle mismatch.

@@ -1,0 +1,52 @@
+[iPhone_XR] True Skate already in foreground — reusing.
+WARNING:root:trick_info_reader: no match for OCR output 'SE VIOHLA TO 0 R'
+trial 0: trick=None status=None
+WARNING:root:trick_info_reader: no match for OCR output 'STS'
+WARNING:root:trick_info_reader: no match for OCR output 'CTHOM ONICHYORZINXS JASYET ANEHAS'
+trial 1: trick='QUAD KICKFLIP + VARIAL TRIPLE KICKFLIP' status='failed'
+WARNING:root:trick_info_reader: no match for OCR output 'TOUR'
+trial 2: trick=None status=None
+WARNING:root:trick_info_reader: no match for OCR output 'CTHOM ONICENOEZINXS INSYET AXENAS'
+WARNING:root:trick_info_reader: no match for OCR output 'YU'
+WARNING:root:trick_info_reader: bare rotation '112' not in KNOWN_TRICKS
+WARNING:root:trick_info_reader: no match for OCR output '4 U'
+WARNING:root:trick_info_reader: no match for OCR output 'TU'
+WARNING:root:trick_info_reader: no match for OCR output '4 U'
+trial 3: trick='NOLLIE NOSE SLIDE' status='failed'
+WARNING:root:trick_info_reader: no match for OCR output 'TOUR'
+WARNING:root:trick_info_reader: no match for OCR output ''
+WARNING:root:trick_info_reader: no match for OCR output 'STREFT LEACUE SKATEBUARDING WORLD TOUR'
+WARNING:root:trick_info_reader: no match for OCR output 'TU'
+WARNING:root:trick_info_reader: no match for OCR output 'TU'
+trial 4: trick='NOLLIE NOSE SLIDE' status='failed'
+WARNING:root:trick_info_reader: no match for OCR output 'S 07 1101119'
+trial 5: trick='720 DOUBLE FLIP' status='failed'
+WARNING:root:trick_info_reader: no match for OCR output 'TUUR'
+WARNING:root:trick_info_reader: no match for OCR output 'TU'
+WARNING:root:trick_info_reader: no match for OCR output 'YU'
+WARNING:root:trick_info_reader: no match for OCR output 'TU'
+WARNING:root:trick_info_reader: bare rotation '000' not in KNOWN_TRICKS
+WARNING:root:trick_info_reader: no match for OCR output 'TU'
+trial 6: trick='NOLLIE NOSE SLIDE' status='failed'
+WARNING:root:trick_info_reader: no match for OCR output '4 U'
+WARNING:root:trick_info_reader: no match for OCR output 'TRECECTETRNEEEE'
+WARNING:root:trick_info_reader: no match for OCR output 'TU'
+WARNING:root:trick_info_reader: no match for OCR output '4 U'
+trial 7: trick='NOLLIE NOSE SLIDE' status='failed'
+trial 8: trick='LIPSLIDE' status='failed'
+WARNING:root:trick_info_reader: no match for OCR output 'STREKET AEAGUE SKATEBOARDING WORLD TOUR'
+WARNING:root:trick_info_reader: no match for OCR output 'SIS'
+WARNING:root:trick_info_reader: no match for OCR output 'CTHOM ONICENOEZINXS INSYET AXENAS'
+WARNING:root:trick_info_reader: no match for OCR output 'STREX LLAGUE SKATEROARIING WORLD TOUR'
+WARNING:root:trick_info_reader: no match for OCR output 'YU'
+WARNING:root:trick_info_reader: no match for OCR output 'TU'
+WARNING:root:trick_info_reader: no match for OCR output '4 U'
+trial 9: trick='NOLLIE NOSE SLIDE' status='failed'
+[iPhone_XR] Disconnected.
+
+=== ROUND-TRIP SUMMARY ===
+   5x  NOLLIE NOSE SLIDE [failed]
+   2x  None [None]
+   1x  QUAD KICKFLIP + VARIAL TRIPLE KICKFLIP [failed]
+   1x  720 DOUBLE FLIP [failed]
+   1x  LIPSLIDE [failed]
