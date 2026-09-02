@@ -33,9 +33,15 @@ class FollowCamera:
         self._yaw = 0.0
         self._init = False
 
+    def _aim(self, board_pos: np.ndarray, yaw: float) -> np.ndarray:
+        """Where the camera points: ahead of the board, not at it."""
+        lead = self.p.cam_lead_m
+        return np.asarray(board_pos, dtype=np.float64) + np.array(
+            [lead * math.cos(yaw), lead * math.sin(yaw), 0.0])
+
     def reset(self, board_pos: np.ndarray, board_yaw: float) -> None:
-        self._target = np.asarray(board_pos, dtype=np.float64).copy()
         self._yaw = float(board_yaw)
+        self._target = self._aim(board_pos, self._yaw)
         self._init = True
 
     def update(self, board_pos: np.ndarray, board_yaw: float, dt: float) -> None:
@@ -44,18 +50,12 @@ class FollowCamera:
             return
         tau = self.p.cam_follow_tau
         a = 1.0 if tau <= 1e-6 else 1.0 - math.exp(-dt / tau)
-        self._target += a * (np.asarray(board_pos) - self._target)
+        self._target += a * (self._aim(board_pos, board_yaw) - self._target)
         # Shortest-arc yaw blend, so passing through +/-pi doesn't whipround.
         self._yaw += a * math.atan2(math.sin(board_yaw - self._yaw),
                                     math.cos(board_yaw - self._yaw))
 
     # -- frame -------------------------------------------------------------
-
-    @property
-    def position(self) -> np.ndarray:
-        d, h = self.p.cam_distance, self.p.cam_height
-        return self._target + np.array([-d * math.cos(self._yaw),
-                                        -d * math.sin(self._yaw), h])
 
     def basis(self) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """(right, up, forward) unit vectors of the camera, in world coords."""
@@ -69,6 +69,29 @@ class FollowCamera:
         # round-trips self-consistent, so it survives the obvious test.
         up = np.cross(forward, right)
         return right, up, forward / np.linalg.norm(forward)
+
+    @property
+    def position(self) -> np.ndarray:
+        """Sits `cam_distance` back along the view ray from the board.
+
+        Aiming at the target is what makes the camera identifiable: with an
+        independent height the fit could trade height against pitch without
+        changing the image.
+        """
+        _, _, forward = self.basis()
+        return self._target - self.p.cam_distance * forward
+
+    @property
+    def elevation_deg(self) -> float:
+        return self.p.cam_pitch_deg
+
+    @property
+    def azimuth_deg(self) -> float:
+        return math.degrees(self._yaw)
+
+    @property
+    def target(self) -> np.ndarray:
+        return self._target.copy()
 
     # -- projection --------------------------------------------------------
 

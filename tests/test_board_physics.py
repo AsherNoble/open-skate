@@ -73,6 +73,32 @@ def test_tail_press_pops_the_board():
     assert peak > ride_height(sim.params) + 0.08, f"no pop: peak {peak:.3f} m"
 
 
+def _find_tail_screen_y(sim, touch, x: float = 0.5) -> float:
+    """Screen y whose ray lands furthest back along the deck, after the push.
+
+    Probes a fresh copy so the sim under test is left untouched.
+    """
+    import numpy as np
+
+    from opensk.sim.camera import board_yaw
+    from opensk.sim.touch import ON_DECK, TouchModel
+
+    probe = SkateSim(sim.params)
+    probe.reset(seed=0)
+    ptouch = TouchModel(probe)
+    ptouch._run_push()
+    best_y, best_back = None, None
+    for y in np.arange(0.30, 0.85, 0.002):
+        kind, hit = ptouch.cast(x, float(y))
+        if kind != ON_DECK:
+            continue
+        along = probe.local_point(hit)[0]  # deck-local, -ve is toward the tail
+        if best_back is None or along < best_back:
+            best_back, best_y = along, float(y)
+    assert best_y is not None, "no screen ray hits the deck at all"
+    return best_y
+
+
 def test_screen_gesture_ollies_the_board():
     """End-to-end: a screen-space gesture must be able to pop the board.
 
@@ -88,18 +114,36 @@ def test_screen_gesture_ollies_the_board():
     sim = SkateSim()
     sim.reset(seed=0)
     touch = TouchModel(sim)
-    # Starts on the tail (screen y 0.515 lands on the deck's rear end once the
-    # push has rolled it forward) and drags down-screen, which presses the
-    # tail into the ground.
-    recipe = {"gestures": [{"points": [[0.5, 0.515], [0.5, 0.595], [0.5, 0.675]],
-                            "duration": 0.13, "easing_power": 2.2}],
-              "delays": []}
-    traj = touch.run(recipe, push=True, settle=0.9)
 
-    assert any(s.deck_contact for s in traj), "tail never struck the ground"
-    peak = max(s.pos[2] for s in traj)
-    assert peak > ride_height(sim.params) + 0.10, f"no pop: {peak:.3f} m"
-    assert any(s.airborne for s in traj), "board never left the ground"
+    # Find the tail by raycast rather than hardcoding a screen coordinate.
+    # The camera is unfitted and will move repeatedly through system
+    # identification; this test is about the mechanism, so it must not double
+    # as a snapshot of the current calibration.
+    tail_y = _find_tail_screen_y(sim, touch)
+
+    # Sweep drag length rather than pinning one. How far a screen drag moves
+    # the deck depends on the camera, which system identification will keep
+    # moving; what must hold is that SOME plausible tail press pops the board.
+    best = None
+    for dy in (0.06, 0.09, 0.12, 0.15):
+        s2 = SkateSim(sim.params)
+        s2.reset(seed=0)
+        t2 = TouchModel(s2)
+        recipe = {"gestures": [{"points": [[0.5, tail_y], [0.5, tail_y + dy / 2],
+                                           [0.5, tail_y + dy]],
+                                "duration": 0.13, "easing_power": 2.2}],
+                  "delays": []}
+        traj = t2.run(recipe, push=True, settle=0.9)
+        peak = max(st.pos[2] for st in traj)
+        struck = any(st.deck_contact for st in traj)
+        airborne = any(st.airborne for st in traj)
+        if best is None or peak > best[0]:
+            best = (peak, struck, airborne, dy)
+
+    peak, struck, airborne, dy = best
+    assert struck, "tail never struck the ground at any drag length"
+    assert peak > ride_height(sim.params) + 0.10, f"no pop: {peak:.3f} m (dy={dy})"
+    assert airborne, "board never left the ground"
 
 
 def test_push_reaches_a_plausible_speed():

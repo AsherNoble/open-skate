@@ -82,10 +82,23 @@ class SkateParams:
     touch_slip_distance: float = 0.16
 
     # --- camera (part of the physics model: it defines where a touch lands) -
-    cam_fov_deg: float = 42.0
-    cam_distance: float = 2.10
-    cam_height: float = 1.05
-    cam_pitch_deg: float = -26.0
+    # Fitted to the real game: 128 resting-board frames, matching silhouette
+    # length, width and cy to under one percent. Taper is NOT matched (0.86 vs
+    # 0.69) because our deck outline is three boxes where True Skate's is a
+    # rounded popsicle with raised kicktails, and taper is shape-sensitive.
+    # See pose/calibrate_camera.py.
+    cam_fov_deg: float = 43.309
+    # The camera AIMS AT the board, so its height is not free: it follows from
+    # distance and pitch. Carrying an independent height as well would give
+    # three parameters for two degrees of freedom and leave sysid a flat
+    # direction to wander along.
+    cam_distance: float = 2.830
+    cam_pitch_deg: float = -41.943
+    # The camera aims this far AHEAD of the board along its heading, which is
+    # what pushes the board below screen centre (measured at cy = 0.582, not
+    # 0.5) so the rider can see what is coming. Identifiable, unlike an
+    # independent camera height.
+    cam_lead_m: float = 0.287
     # First-order follow lag, seconds. 0 = rigidly locked to the board.
     cam_follow_tau: float = 0.18
     # Screen aspect (width/height). All three rig devices are 19.5:9 to within
@@ -151,9 +164,9 @@ FIT_SPEC: dict[str, tuple[float, float]] = {
     "touch_force_max":       (15.0, 400.0),
     "touch_slip_distance":   (0.04, 0.40),
     "cam_fov_deg":           (25.0, 70.0),
-    "cam_distance":          (1.0, 4.0),
-    "cam_height":            (0.4, 2.2),
-    "cam_pitch_deg":         (-50.0, -5.0),
+    "cam_distance":          (0.8, 5.0),
+    "cam_pitch_deg":         (-85.0, -10.0),
+    "cam_lead_m":            (-0.5, 2.0),
     "cam_follow_tau":        (0.0, 0.6),
     "spin_torque":           (0.1, 12.0),
     "push_impulse_gain":     (1.0, 60.0),
