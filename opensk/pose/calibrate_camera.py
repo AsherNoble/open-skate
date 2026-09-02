@@ -5,6 +5,15 @@ touch lands on the deck, so until it matches True Skate's, every force the
 touch model applies is applied in the wrong place and the physics fit would
 silently absorb the error.
 
+THE CAMERA IS PER-CAPTURE-SESSION, NOT A CONSTANT. True Skate lets the player
+move the camera, so a calibration fitted on one corpus does not describe
+another. Measured: the real board is 0.2857 of frame height in the
+self-labelled flick corpus but 0.1154 in the trick captures -- 40% the size,
+and at a different height on screen (cy 0.5952 against 0.4892). Fitting
+physics against a corpus with the wrong camera makes silhouette overlap a
+measure of that mismatch rather than of dynamics, and no parameter search can
+recover it. Re-calibrate for every corpus before fitting against it.
+
 Calibration uses frames with the board at rest at the reset anchor, where its
 pose is known by construction. Four silhouette features are matched:
 
