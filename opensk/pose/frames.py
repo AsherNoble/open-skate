@@ -15,6 +15,7 @@ segmentation completely.
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import sys
 from dataclasses import dataclass
@@ -22,7 +23,11 @@ from dataclasses import dataclass
 import cv2
 import numpy as np
 
-RIG = pathlib.Path("/Users/ashernoble/Projects/Robotics & hardware/TrueSkate-AI")
+# Location of the sibling TrueSkate-AI checkout, which owns the gesture schema
+# and the capture corpus. Overridable so the path is not baked in.
+RIG = pathlib.Path(os.environ.get(
+    "TRUESKATE_AI_ROOT",
+    "/Users/ashernoble/Projects/Robotics & hardware/TrueSkate-AI"))
 RIG_SRC = RIG / "src"
 CORPUS = RIG / "data/self_labeled_traces"
 

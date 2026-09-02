@@ -9,6 +9,7 @@ Skipped (not failed) when the sibling repo is absent, so Open Skate stays
 testable standalone.
 """
 import json
+import os
 import pathlib
 import re
 import subprocess
@@ -17,7 +18,9 @@ import pytest
 
 from opensk.sim import gesture_spec as gs
 
-RIG = pathlib.Path("/Users/ashernoble/Projects/Robotics & hardware/TrueSkate-AI")
+RIG = pathlib.Path(os.environ.get(
+    "TRUESKATE_AI_ROOT",
+    "/Users/ashernoble/Projects/Robotics & hardware/TrueSkate-AI"))
 RIG_PY = RIG / ".venv/bin/python"
 
 pytestmark = pytest.mark.skipif(
