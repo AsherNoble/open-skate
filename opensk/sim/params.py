@@ -184,10 +184,16 @@ FIT_SPEC: dict[str, tuple[float, float]] = {
     "contact_solref_damp":   (0.3, 2.5),
     "contact_solimp_dmin":   (0.60, 0.97),
     "contact_solimp_dmax":   (0.90, 0.999),
-    "touch_gain":            (30.0, 900.0),
+    # Upper bounds raised after measuring where the board actually flips.
+    # At gain 200 it barely rotates; flips appear around 900 and peak near
+    # 1500-2400 (median roll 154 deg, 43% of captured recipes past a full
+    # rotation, against 7% at the old defaults), degrading again by 4000. The
+    # old ceiling of 900 clipped the search short of the only region that
+    # reproduces the real board's rotation.
+    "touch_gain":            (30.0, 3000.0),
     "touch_friction":        (0.15, 4.0),
     "touch_damping":         (0.5, 60.0),
-    "touch_force_max":       (15.0, 400.0),
+    "touch_force_max":       (15.0, 900.0),
     "cam_fov_deg":           (25.0, 70.0),
     "cam_distance":          (0.8, 5.0),
     "cam_pitch_deg":         (-85.0, -10.0),
