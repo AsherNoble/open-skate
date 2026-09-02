@@ -39,9 +39,10 @@ class Finger:
     ride the deck through a flip instead of being left behind in world space.
     """
 
-    __slots__ = ("path", "t0", "kind", "local", "depth", "released", "_prev_screen")
+    __slots__ = ("path", "t0", "kind", "local", "depth", "released",
+                 "_prev_screen", "is_push")
 
-    def __init__(self, path: GesturePath, t0: float):
+    def __init__(self, path: GesturePath, t0: float, is_push: bool = False):
         self.path = path
         self.t0 = t0
         self.kind = None
@@ -49,6 +50,9 @@ class Finger:
         self.depth = 0.0    # view depth the fingertip is held at, from touch-down
         self.released = False
         self._prev_screen = None
+        # The deliberate push gesture and an incidental ground touch during a
+        # trick are different mechanics; they take different gains.
+        self.is_push = is_push
 
     def active(self, t: float) -> bool:
         return not self.released and self.t0 <= t <= self.t0 + self.path.duration
@@ -183,7 +187,9 @@ class TouchModel:
             # which is what a foot does against the ground.
             sign = 1.0 if step[1] >= 0.0 else -1.0
             yaw = board_yaw(self.sim.state().quat)
-            thrust = sign * self.p.push_impulse_gain * travel / dt
+            gain = (self.p.push_impulse_gain if f.is_push
+                    else self.p.ground_shove_gain)
+            thrust = sign * gain * travel / dt
             self.sim.apply_force(
                 np.array([thrust * np.cos(yaw), thrust * np.sin(yaw), 0.0]),
                 self.sim.data.xipos[self.sim.deck_bid].copy())
@@ -244,7 +250,7 @@ class TouchModel:
         from .gesture_spec import push_path
         dt = self.p.timestep
         path = push_path()
-        f = Finger(path, 0.0)
+        f = Finger(path, 0.0, is_push=True)
         t = 0.0
         while t <= path.duration:
             self.camera.update(self.sim.state().pos,

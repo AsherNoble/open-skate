@@ -23,9 +23,9 @@ class SkateParams:
     deck_length: float = 0.813
     deck_width: float = 0.196
     deck_thickness: float = 0.012
-    deck_mass: float = 1.40
+    deck_mass: float = 0.9001
     # Wheelbase: axle-to-axle. Real decks run 0.33-0.38 m.
-    wheelbase: float = 0.360
+    wheelbase: float = 0.3343
     # Kicktails. The nose and tail angle up off the flat, and the tail angle
     # is what sets how far the deck must pitch before it strikes the ground —
     # i.e. it governs the pop directly. Measured, not fitted.
@@ -45,39 +45,39 @@ class SkateParams:
     deck_taper_power: float = 1.6
 
     # --- trucks ------------------------------------------------------------
-    truck_mass: float = 0.350
+    truck_mass: float = 0.3472
     # Kingpin angle measured from the deck plane. ~50 deg is standard; this
     # is what converts deck roll into wheel steer, so it dominates carving.
-    kingpin_angle_deg: float = 50.0
+    kingpin_angle_deg: float = 50.6676
     # Bushing stiffness/damping about the steering axis. The single most
     # important pair for how the board feels: too stiff and it will not
     # carve, too soft and it wobbles.
-    truck_stiffness: float = 30.0
-    truck_damping: float = 0.9
+    truck_stiffness: float = 48.5262
+    truck_damping: float = 0.5726
     # Mechanical stop on the steering hinge (bushings bottoming out).
-    truck_limit_deg: float = 35.0
+    truck_limit_deg: float = 39.2777
 
     # --- wheels ------------------------------------------------------------
     # SPHERE geoms, not cylinders: MJX-JAX cannot collide a cylinder with a
     # box or a mesh, and every park surface is a box. See the plan.
     wheel_radius: float = 0.027
-    wheel_mass: float = 0.055
+    wheel_mass: float = 0.1043
     # Axle half-separation; wheels sit at +/- this in the deck's y axis.
     axle_halfwidth: float = 0.105
-    wheel_friction_slide: float = 1.30
-    wheel_friction_spin: float = 0.006
+    wheel_friction_slide: float = 0.6847
+    wheel_friction_spin: float = 0.0039
     wheel_friction_roll: float = 0.0004
     # Bearing drag, as joint friction loss on the wheel hinge.
-    wheel_frictionloss: float = 0.0012
+    wheel_frictionloss: float = 0.0001
 
     # --- deck contact (the ends strike the ground; this is the pop) --------
-    deck_friction_slide: float = 0.55
+    deck_friction_slide: float = 0.1543
     # solref/solimp govern MuJoCo's soft contact. The tail-strike impulse is
     # exactly what sets ollie height, so these are prime fit targets.
-    contact_solref_time: float = 0.010
-    contact_solref_damp: float = 1.00
-    contact_solimp_dmin: float = 0.92
-    contact_solimp_dmax: float = 0.98
+    contact_solref_time: float = 0.0375
+    contact_solref_damp: float = 0.3387
+    contact_solimp_dmin: float = 0.8484
+    contact_solimp_dmax: float = 0.9087
     contact_solimp_width: float = 0.001
 
     # --- touch model (screen gesture -> force on the deck) -----------------
@@ -93,10 +93,10 @@ class SkateParams:
     # model do both tricks -- a tail press is mostly normal force, so it
     # sticks and pops; a flick is mostly tangential, so it slips to the rail
     # and rolls the board.
-    touch_friction: float = 1.8
-    touch_gain: float = 600.0
-    touch_damping: float = 12.0
-    touch_force_max: float = 250.0
+    touch_friction: float = 3.4938
+    touch_gain: float = 2836.1676
+    touch_damping: float = 2.1455
+    touch_force_max: float = 853.6759
     # Retained for reporting only; no longer gates release. See sim/touch.py:
     # a hard slip release left the finger disengaged for 76% of the median
     # real gesture, and only 0.1% of the 1391 real gestures are short enough
@@ -134,16 +134,28 @@ class SkateParams:
     # A drag landing on the ground rather than the deck is a push. Modelled as
     # an IMPULSE proportional to how far the finger travels across the screen,
     # spread over the gesture -- not as a force proportional to drag speed.
+    # The DELIBERATE push gesture only. Pinned, not fitted: the fitting replay
+    # never fires a push (the capture does not), so nothing in the data
+    # constrains it, and it is set to give a plausible ~1.8 m/s.
+    #
     # Speed-proportional blows up: PUSH_DURATION is 0.02 s on the device, so a
     # standard push covers 0.37 screen units at ~19 units/s and any sane gain
     # launches the board. Distance is also stable under the millisecond
     # quantisation of segment durations. N*s per unit of normalised screen travel.
     push_impulse_gain: float = 12.5
+    # A finger incidentally touching the GROUND during a trick gesture, which
+    # is a different mechanic that happened to share the push's parameter.
+    # Trick recipes routinely start on the ground behind the tail, so this is
+    # exercised constantly while the deliberate push never is -- fitting one
+    # number for both drove it to 58.6, which fits the trick data well and
+    # implies an absurd 7.7 m/s single push. Separated so each is set by the
+    # evidence that actually bears on it.
+    ground_shove_gain: float = 58.584
 
     # --- spin button -------------------------------------------------------
     # True Skate's rotate button, which curved drags cannot express. Held by a
     # second finger; modelled as a yaw torque about the deck normal.
-    spin_torque: float = 1.6
+    spin_torque: float = 2.2705
 
     # --- integrator --------------------------------------------------------
     # 500 Hz, comfortably above True Skate's 120 Hz, so contact resolution is
@@ -200,7 +212,7 @@ FIT_SPEC: dict[str, tuple[float, float]] = {
     "cam_lead_m":            (-0.5, 2.0),
     "cam_follow_tau":        (0.0, 0.6),
     "spin_torque":           (0.1, 12.0),
-    "push_impulse_gain":     (1.0, 60.0),
+    "ground_shove_gain":     (1.0, 120.0),
 }
 
 FIT_KEYS: tuple[str, ...] = tuple(FIT_SPEC)
