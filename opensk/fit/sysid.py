@@ -156,6 +156,32 @@ def build_corpus(limit: int | None = None, *, height: int = 224,
     return Corpus(samples, targets, h, w)
 
 
+def mean_gain(params: SkateParams, corpus: Corpus, *,
+              subsample: int | None = None, rng=None) -> float:
+    """Mean overlap earned ABOVE a stationary board. Inertness scores 0.
+
+    This is the objective to optimise. Optimising raw overlap failed in a
+    specific and informative way: it reached 0.6604 on train but 0.6424 on
+    held-out against 0.6444 for an inert board, having driven touch_gain from
+    600 to 76. The optimiser found that the cheapest way to look like the real
+    frames is to stop moving, because raw overlap is dominated by the board
+    simply being roughly where it started.
+    """
+    sim = SkateSim(params)
+    renderer = SceneRenderer(sim, height=corpus.height)
+    idx = range(len(corpus.samples))
+    if subsample is not None and subsample < len(corpus.samples):
+        rng = rng or np.random.default_rng(0)
+        idx = rng.choice(len(corpus.samples), subsample, replace=False)
+    vals = []
+    for i in idx:
+        sc = score_sample(corpus.samples[i], params, targets=corpus.targets[i],
+                          sim=sim, renderer=renderer)
+        if sc.n_scored:
+            vals.append(sc.gain)
+    return float(np.mean(vals)) if vals else 0.0
+
+
 def mean_iou(params: SkateParams, corpus: Corpus, *,
              subsample: int | None = None, rng=None) -> float:
     """Mean per-sample overlap. Samples that score no frames are skipped.
@@ -216,8 +242,8 @@ def fit(corpus: Corpus, *, evals: int = 300, seed: int = 0,
         losses = []
         for x in xs:
             p = to_params(x)
-            iou = mean_iou(p, corpus, subsample=subsample, rng=obj_rng)
-            losses.append(1.0 - iou)
+            iou = mean_gain(p, corpus, subsample=subsample, rng=obj_rng)
+            losses.append(-iou)
             n += 1
             if iou > best_iou:
                 best_iou, best_params = iou, p
@@ -228,15 +254,19 @@ def fit(corpus: Corpus, *, evals: int = 300, seed: int = 0,
                 log.flush()
         es.tell(xs, losses)
         if verbose:
-            print(f"  evals {n:4d}  best train IoU {best_iou:.4f}"
+            print(f"  evals {n:4d}  best train gain {best_iou:+.4f}"
                   f"  ({time.time() - t0:.0f}s)")
 
-    report = {"train_iou": best_iou, "evals": n,
+    report = {"train_gain": best_iou, "evals": n,
               "seconds": time.time() - t0,
               "params": {k: getattr(best_params, k) for k in PHYSICS_KEYS}}
     if held is not None:
-        report["held_iou"] = mean_iou(best_params, held)  # full held set
-        report["held_baseline_inert"] = mean_iou(
+        # Gain on the full held-out set. Positive means the fitted physics
+        # reproduces real motion better than not moving at all; zero or
+        # negative means it does not, whatever the raw overlap says.
+        report["held_gain"] = mean_gain(best_params, held)
+        report["held_iou"] = mean_iou(best_params, held)
+        report["held_gain_inert"] = mean_gain(
             best_params.replace(touch_gain=1e-3, touch_force_max=1e-3), held)
     if log:
         log.write(json.dumps({"type": "result", **report}) + "\n")

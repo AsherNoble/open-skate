@@ -43,10 +43,24 @@ class SampleScore:
     per_frame: np.ndarray
     n_scored: int
     n_frames: int
+    static_iou: float = 0.0    # same frames, board left at its initial pose
 
     @property
     def loss(self) -> float:
         return 1.0 - self.iou
+
+    @property
+    def gain(self) -> float:
+        """Overlap earned ABOVE a board that never moves.
+
+        This is the number that matters. Raw overlap is dominated by the board
+        simply being roughly where it started: fitting it directly drove
+        `touch_gain` from 600 to 76 and still scored 0.6424 on held-out data
+        against 0.6444 for an inert board -- the optimiser's best strategy was
+        to stop moving. Scoring the gain makes inertness worth exactly zero, so
+        only reproducing the real motion can earn credit.
+        """
+        return self.iou - self.static_iou
 
 
 def real_masks(sample: Sample, height: int, width: int
@@ -95,6 +109,15 @@ def score_sample(sample: Sample, params: SkateParams | None = None, *,
 
     sim.reset(seed=0)
     sim.step(200)                       # settle at the anchor, as the rig does
+
+    # Reference silhouette: the board where the gesture found it. Rendered once
+    # per sample, since holding still is parameter-independent once deck
+    # geometry is fixed (and deck geometry is measured, never fitted).
+    st0 = sim.state()
+    cam0 = FollowCamera(params)
+    cam0.reset(st0.pos, board_yaw(st0.quat))
+    static_mask = renderer.board_pixels(cam0)
+
     touch = TouchModel(sim)
 
     # Frame timestamps are relative to the gesture's start, and the earliest is
@@ -102,11 +125,12 @@ def score_sample(sample: Sample, params: SkateParams | None = None, *,
     times = np.asarray(sample.frame_times, dtype=float)
     want = [(t, i) for i, t in enumerate(times) if targets[i] is not None]
     if not want:
-        return SampleScore(0.0, np.zeros(0), 0, len(times))
+        return SampleScore(0.0, np.zeros(0), 0, len(times), 0.0)
     want.sort()
 
     dt = params.timestep
     ious = np.zeros(len(want))
+    statics = np.zeros(len(want))
     t_sim = 0.0
     # Run the gesture and the settle in one pass, sampling as timestamps pass.
     schedule = touch.run_iter(sample.recipe(), push=False,
@@ -121,9 +145,12 @@ def score_sample(sample: Sample, params: SkateParams | None = None, *,
             tgt = targets[want[k][1]]
             union = np.count_nonzero(m | tgt)
             ious[k] = 0.0 if union == 0 else np.count_nonzero(m & tgt) / union
+            su = np.count_nonzero(static_mask | tgt)
+            statics[k] = 0.0 if su == 0 else np.count_nonzero(static_mask & tgt) / su
             k += 1
         if k >= len(want):
             break
 
     return SampleScore(float(ious[:k].mean()) if k else 0.0,
-                       ious[:k], int(k), len(times))
+                       ious[:k], int(k), len(times),
+                       float(statics[:k].mean()) if k else 0.0)
