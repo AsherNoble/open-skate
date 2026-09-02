@@ -48,10 +48,17 @@ class SkateSim:
 
         # Collision geoms of the deck: what contact and ray casts see.
         self._deck_gids = _named("deck_")
-        # Visual-only popsicle outline: what the silhouette comparison sees.
-        # Kept apart so the faithful outline never affects the physics and the
-        # cheap MJX-safe boxes never affect the rendered shape.
-        self._deck_visual_gids = _named("vis_")
+        # What the silhouette comparison sees: the visual popsicle outline PLUS
+        # the trucks and wheels.
+        #
+        # The hardware is not decoration here. A thin symmetric plate's outline
+        # is the same flipped over or reversed end-for-end, which left
+        # silhouette pose fitting with ~93 deg median rotation error at IoU
+        # 0.98 -- deep false optima, not a search failure. Trucks and wheels
+        # are hidden under an upright board and plainly visible under an
+        # inverted one, so including them breaks that symmetry.
+        self._deck_visual_gids = (_named("vis_") | _named("front_")
+                                  | _named("rear_"))
         self.reset()
 
     # -- lifecycle ---------------------------------------------------------

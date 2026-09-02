@@ -152,11 +152,21 @@ class TouchModel:
 
     def run(self, recipe: dict, *, push: bool = True, settle: float = 0.6,
             record: bool = True) -> list:
-        """Execute a full recipe and return the state trajectory.
+        """Execute a full recipe and return the state trajectory."""
+        return list(self.run_iter(recipe, push=push, settle=settle))
 
-        Mirrors the device execution flow in GESTURES.md: push, wait out
-        PUSH_PRE_DELAY, fire the scheduled gestures, then let the board settle
-        so the landing is part of the trajectory.
+    def run_iter(self, recipe: dict, *, push: bool = True,
+                 settle: float = 0.6):
+        """Execute a recipe, yielding the state after every physics substep.
+
+        Generator form so callers can sample at arbitrary timestamps without
+        materialising the whole trajectory — the fitting objective needs the
+        state at ~11 real frame times out of several hundred substeps.
+
+        Mirrors the device execution flow in GESTURES.md: optional push, wait
+        out PUSH_PRE_DELAY, fire the scheduled gestures, then settle so the
+        landing is part of the trajectory. Note the capture this is fitted
+        against does NOT push.
         """
         dt = self.p.timestep
         schedule = schedule_recipe(recipe)
@@ -167,11 +177,10 @@ class TouchModel:
         if push:
             self._run_push()
 
-        traj = []
         t, end = 0.0, total + settle
         while t < end:
-            self.camera.update(self.sim.state().pos,
-                               board_yaw(self.sim.state().quat), dt)
+            st = self.sim.state()
+            self.camera.update(st.pos, board_yaw(st.quat), dt)
             for f in fingers:
                 if f.active(t):
                     self._apply_finger(f, t, dt)
@@ -181,11 +190,8 @@ class TouchModel:
                 n = self.sim.deck_frame()[1][:, 2]
                 self.sim.data.xfrc_applied[self.sim.deck_bid, 3:] += \
                     self.p.spin_torque * n
-            st = self.sim.step()
-            if record:
-                traj.append(st)
+            yield self.sim.step()
             t += dt
-        return traj
 
     def _run_push(self) -> None:
         """The standard push, then the remainder of PUSH_PRE_DELAY."""
