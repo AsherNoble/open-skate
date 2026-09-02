@@ -37,6 +37,7 @@ class Outcome:
     peak_height: float       # metres above the resting ride height
     landed: bool             # all four wheels back down, board upright
     airborne_s: float
+    displacement: float = 0.0   # furthest the board travelled from its start
 
 
 def decode(vec: np.ndarray, n_slots: int = 2) -> dict:
@@ -76,6 +77,8 @@ def simulate(recipe: dict, params: SkateParams | None = None,
     peak = 0.0
     airborne = 0
     rest = sim.state().pos[2]
+    start_xy = sim.state().pos[:2].copy()
+    displacement = 0.0
     last = None
     for st in touch.run_iter(recipe, push=False, settle=settle):
         d = quat_delta(prev, st.quat)
@@ -90,15 +93,18 @@ def simulate(recipe: dict, params: SkateParams | None = None,
         peak = max(peak, st.pos[2])
         if st.airborne:
             airborne += 1
+        displacement = max(displacement,
+                           float(np.linalg.norm(st.pos[:2] - start_xy)))
         last = st
     upright = last is not None and abs(last.quat[0]) > 0.85
     landed = bool(last is not None and last.wheel_contact.all() and upright)
     return Outcome(float(np.degrees(roll)), float(np.degrees(yaw)),
-                   float(peak - rest), landed, airborne * params.timestep)
+                   float(peak - rest), landed, airborne * params.timestep,
+                   displacement)
 
 
 def loss(out: Outcome, target_roll: float = 360.0,
-         target_yaw: float = 0.0) -> float:
+         target_yaw: float = 0.0, max_displacement: float = 0.6) -> float:
     """Distance from the requested rotation, with landing preferred.
 
     Rotation error dominates; height and landing are shaping terms. A gesture
@@ -108,11 +114,19 @@ def loss(out: Outcome, target_roll: float = 360.0,
     r_err = abs(abs(out.roll_deg) - abs(target_roll)) / 360.0
     y_err = abs(abs(out.yaw_deg) - abs(target_yaw)) / 360.0
     air = 0.0 if out.airborne_s > 0.12 else (0.12 - out.airborne_s) * 4.0
-    return r_err + 0.5 * y_err + air + (0.0 if out.landed else 0.35)
+    # Penalise travelling far. A gesture that rotates correctly but carries the
+    # board 1.4 m ends up on a rail in the real park -- which is what the first
+    # two round-trip tests produced: six of ten trials came back as slides. The
+    # simulation replays on flat ground and cannot see the obstacle, so the
+    # constraint has to be imposed here rather than discovered.
+    travel = max(0.0, out.displacement - max_displacement)
+    return (r_err + 0.5 * y_err + air + travel
+            + (0.0 if out.landed else 0.35))
 
 
 def search(target_roll: float = 360.0, target_yaw: float = 0.0, *,
            n_slots: int = 2, evals: int = 600, seed: int = 0,
+           max_displacement: float = 0.6,
            params: SkateParams | None = None, verbose: bool = True):
     """CMA-ES over gesture parameters. Returns (recipe, outcome, loss)."""
     import cma
@@ -135,14 +149,14 @@ def search(target_roll: float = 360.0, target_yaw: float = 0.0, *,
         for x in xs:
             rec = decode(np.asarray(x), n_slots)
             out = simulate(rec, params)
-            l = loss(out, target_roll, target_yaw)
+            l = loss(out, target_roll, target_yaw, max_displacement)
             ls.append(l)
             if l < best[0]:
                 best = (l, rec, out)
         es.tell(xs, ls)
         if verbose and best[2] is not None:
             print(f"  loss {best[0]:.3f}  roll {best[2].roll_deg:+.0f}deg "
-                  f"yaw {best[2].yaw_deg:+.0f}deg air {best[2].airborne_s:.2f}s "
+                  f"air {best[2].airborne_s:.2f}s travel {best[2].displacement:.2f}m "
                   f"landed {best[2].landed}", flush=True)
     return best[1], best[2], best[0]
 

@@ -1,0 +1,24 @@
+[iPhone_XR] True Skate already in foreground — reusing.
+trial 0: trick='CASPER SLIDE' status='landed'
+trial 1: trick=None status=None
+trial 2: trick='NOSE GRIND' status='failed'
+WARNING:root:trick_info_reader: no match for OCR output '1 AIMN AI SIMNASSETLC'
+trial 3: trick='POP SHOVE-IT' status='landed'
+trial 4: trick='NOSE MANUAL' status='failed'
+trial 5: trick='POP SHOVE-IT' status='failed'
+trial 6: trick=None status=None
+trial 7: trick='POP SHOVE-IT' status='landed'
+trial 8: trick='TRIPLE LASER FLIP + NOSE MANUAL' status='failed'
+WARNING:root:trick_info_reader: no match for OCR output 'CATNR 1 1 L NN ARAMNNNSSEENA'
+trial 9: trick='NOSE CASPER SLIDE' status='failed'
+[iPhone_XR] Disconnected.
+
+=== ROUND-TRIP SUMMARY ===
+   2x  None [None]
+   2x  POP SHOVE-IT [landed]
+   1x  CASPER SLIDE [landed]
+   1x  NOSE GRIND [failed]
+   1x  NOSE MANUAL [failed]
+   1x  POP SHOVE-IT [failed]
+   1x  TRIPLE LASER FLIP + NOSE MANUAL [failed]
+   1x  NOSE CASPER SLIDE [failed]
