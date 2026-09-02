@@ -1,0 +1,21 @@
+[project]
+name = "open-skate"
+version = "0.1.0"
+description = "A physics-accurate True Skate simulator, fitted to the real game by system identification."
+requires-python = ">=3.11"
+dependencies = [
+    "mujoco>=3.12",
+    "numpy>=2.0",
+    "scipy>=1.10",
+    "cma>=3.3",
+    "opencv-python>=4.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools.packages.find]
+include = ["opensk*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
