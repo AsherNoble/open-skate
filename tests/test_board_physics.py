@@ -71,3 +71,48 @@ def test_tail_press_pops_the_board():
         peak = max(peak, st.pos[2])
     assert struck, "tail never reached the ground"
     assert peak > ride_height(sim.params) + 0.08, f"no pop: peak {peak:.3f} m"
+
+
+def test_screen_gesture_ollies_the_board():
+    """End-to-end: a screen-space gesture must be able to pop the board.
+
+    This is the transfer pipeline in one assertion -- gesture path sampling,
+    camera ray, deck grab, spring-damper force, tail strike, pop. Nothing in
+    it knows what an ollie is. It also guards the touch defaults: below
+    roughly touch_gain * touch_slip_distance = 100 N the tail cannot reach the
+    ground, no gesture can ollie, and system identification would be starting
+    from a flat region of the objective.
+    """
+    from opensk.sim.touch import TouchModel
+
+    sim = SkateSim()
+    sim.reset(seed=0)
+    touch = TouchModel(sim)
+    # Starts on the tail (screen y 0.515 lands on the deck's rear end once the
+    # push has rolled it forward) and drags down-screen, which presses the
+    # tail into the ground.
+    recipe = {"gestures": [{"points": [[0.5, 0.515], [0.5, 0.595], [0.5, 0.675]],
+                            "duration": 0.13, "easing_power": 2.2}],
+              "delays": []}
+    traj = touch.run(recipe, push=True, settle=0.9)
+
+    assert any(s.deck_contact for s in traj), "tail never struck the ground"
+    peak = max(s.pos[2] for s in traj)
+    assert peak > ride_height(sim.params) + 0.10, f"no pop: {peak:.3f} m"
+    assert any(s.airborne for s in traj), "board never left the ground"
+
+
+def test_push_reaches_a_plausible_speed():
+    """The standard push must roll the board, not launch it.
+
+    An earlier speed-proportional push model hit 1032 N and 7.3 m/s on the
+    device's 0.02 s swipe, which carried the board out from under every
+    subsequent gesture. Kept as a guard on the impulse formulation.
+    """
+    from opensk.sim.touch import TouchModel
+
+    sim = SkateSim()
+    sim.reset(seed=0)
+    TouchModel(sim)._run_push()
+    speed = float(np.linalg.norm(sim.state().linvel[:2]))
+    assert 0.5 < speed < 4.0, f"implausible push speed {speed:.2f} m/s"

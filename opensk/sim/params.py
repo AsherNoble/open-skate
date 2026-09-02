@@ -71,9 +71,13 @@ class SkateParams:
     # --- touch model (screen gesture -> force on the deck) -----------------
     # A finger is a capped spring-damper between the fingertip target and the
     # material point on the deck it grabbed.
-    touch_gain: float = 220.0
+    # These three are the initial mean of the CMA-ES search, so they need to
+    # sit in a basin where the board actually behaves: below roughly
+    # gain*slip_distance = 100 N the tail never reaches the ground and no
+    # gesture can ollie, which would leave sysid optimising over a flat region.
+    touch_gain: float = 600.0
     touch_damping: float = 12.0
-    touch_force_max: float = 90.0
+    touch_force_max: float = 250.0
     # How far a fingertip may drag from its grab point before the grip slips.
     touch_slip_distance: float = 0.16
 
@@ -84,6 +88,24 @@ class SkateParams:
     cam_pitch_deg: float = -26.0
     # First-order follow lag, seconds. 0 = rigidly locked to the board.
     cam_follow_tau: float = 0.18
+    # Screen aspect (width/height). All three rig devices are 19.5:9 to within
+    # 0.05%, so this is a constant, not a per-device value. See GESTURES.md.
+    screen_aspect: float = 375.0 / 812.0
+
+    # --- push --------------------------------------------------------------
+    # A drag landing on the ground rather than the deck is a push. Modelled as
+    # an IMPULSE proportional to how far the finger travels across the screen,
+    # spread over the gesture -- not as a force proportional to drag speed.
+    # Speed-proportional blows up: PUSH_DURATION is 0.02 s on the device, so a
+    # standard push covers 0.37 screen units at ~19 units/s and any sane gain
+    # launches the board. Distance is also stable under the millisecond
+    # quantisation of segment durations. N*s per unit of normalised screen travel.
+    push_impulse_gain: float = 12.5
+
+    # --- spin button -------------------------------------------------------
+    # True Skate's rotate button, which curved drags cannot express. Held by a
+    # second finger; modelled as a yaw torque about the deck normal.
+    spin_torque: float = 1.6
 
     # --- integrator --------------------------------------------------------
     # 500 Hz, comfortably above True Skate's 120 Hz, so contact resolution is
@@ -133,6 +155,8 @@ FIT_SPEC: dict[str, tuple[float, float]] = {
     "cam_height":            (0.4, 2.2),
     "cam_pitch_deg":         (-50.0, -5.0),
     "cam_follow_tau":        (0.0, 0.6),
+    "spin_torque":           (0.1, 12.0),
+    "push_impulse_gain":     (1.0, 60.0),
 }
 
 FIT_KEYS: tuple[str, ...] = tuple(FIT_SPEC)
