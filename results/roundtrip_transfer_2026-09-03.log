@@ -1,0 +1,27 @@
+[iPhone_XR] True Skate already in foreground — reusing.
+trial 0: trick=None status=None
+trial 1: trick='POP SHOVE-IT' status='failed'
+WARNING:root:trick_info_reader: no match for OCR output '---'
+WARNING:root:trick_info_reader: no match for OCR output ''
+WARNING:root:trick_info_reader: no match for OCR output 'R'
+trial 2: trick=None status=None
+WARNING:root:trick_info_reader: no match for OCR output 'R'
+trial 3: trick=None status=None
+trial 4: trick='LIPSLIDE' status='failed'
+WARNING:root:trick_info_reader: no match for OCR output ''
+trial 5: trick='NOSEBLUNT' status='failed'
+WARNING:root:trick_info_reader: no match for OCR output 'SRAFE'
+trial 6: trick='NOSE SLIDE + BOARDSLIDE + BOARDSLIDE' status='failed'
+WARNING:root:trick_info_reader: no match for OCR output '-A'
+WARNING:root:trick_info_reader: no match for OCR output ''
+WARNING:root:trick_info_reader: no match for OCR output ''
+trial 7: trick='BOARDSLIDE' status='failed'
+[iPhone_XR] Disconnected.
+
+=== ROUND-TRIP SUMMARY ===
+   3x  None [None]
+   1x  POP SHOVE-IT [failed]
+   1x  LIPSLIDE [failed]
+   1x  NOSEBLUNT [failed]
+   1x  NOSE SLIDE + BOARDSLIDE + BOARDSLIDE [failed]
+   1x  BOARDSLIDE [failed]
