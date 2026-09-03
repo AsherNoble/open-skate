@@ -1,8 +1,8 @@
 {
   "batch": 64,
-  "compile_s": 59.612550117000005,
-  "run_s": 0.7869187109999984,
-  "episodes_per_hour": 292787.54816645914,
+  "compile_s": 62.448820443,
+  "run_s": 0.7471291379999911,
+  "episodes_per_hour": 308380.4235192374,
   "rgb_shape": [
     64,
     68,
@@ -10,15 +10,21 @@
     64,
     3
   ],
-  "shard_bytes": 3150415,
-  "bytes_per_episode": 49225.234375,
+  "shard_bytes": 3082250,
+  "bytes_per_episode": 48160.15625,
   "round_trip_max_error": 5.960464477539063e-08,
   "pose_round_trip_max_error": 0.0,
   "pose_nan_mismatch": 0,
-  "physical_episodes": 53,
-  "board_visible_all_frames": 0.53125,
-  "board_visible_among_physical": 0.6226415094339622,
-  "median_displacement_m": 8.804327011108398,
-  "median_displacement_physical_m": 6.603260517120361,
-  "kept_after_filter": 53
+  "physical_episodes": 51,
+  "board_visible_all_frames": 0.515625,
+  "board_visible_among_physical": 0.6078431372549019,
+  "median_displacement_m": 8.365432739257812,
+  "median_displacement_physical_m": 6.406322956085205,
+  "kept_after_filter": 51,
+  "worldmodel": {
+    "model_mse": 0.0024949635340546093,
+    "persistence_mse": 0.002516318578273058,
+    "mean_frame_mse": 0.0064413114450871944,
+    "beats_persistence": true
+  }
 }
