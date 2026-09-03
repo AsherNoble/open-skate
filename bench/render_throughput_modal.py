@@ -108,6 +108,12 @@ def bench(worlds: list[int], frames: int = 68, segmentation: bool = False) -> di
             fn = mjx.render_with_segmentation if segmentation else mjx.render
 
             def once(dd):
+                # refit_bvh is NOT optional and belongs inside the timed
+                # region: without it the renderer keeps every geom at the pose
+                # it had when the context was built, so a moving board simply
+                # vanishes. Timing render alone measured a configuration that
+                # cannot be used.
+                dd = mjx.refit_bvh(mx, dd, ctx)
                 out = fn(mx, dd, ctx)
                 return out[0], out[-1]
 

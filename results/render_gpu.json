@@ -6,26 +6,26 @@
   "results": [
     {
       "worlds": 64,
-      "compile_s": 2.729996346,
-      "s_per_call": 0.0162559087,
-      "frames_per_s": 3937.029985902911,
-      "batch_render_s": 1.1054017915999999,
+      "compile_s": 2.728985413,
+      "s_per_call": 0.01624751,
+      "frames_per_s": 3939.0651244406067,
+      "batch_render_s": 1.10483068,
       "segmentation": false
     },
     {
       "worlds": 256,
-      "compile_s": 0.20571720000000226,
-      "s_per_call": 0.01338304319999999,
-      "frames_per_s": 19128.683676370423,
-      "batch_render_s": 0.9100469375999993,
+      "compile_s": 0.23248387900000012,
+      "s_per_call": 0.01705576029999989,
+      "frames_per_s": 15009.59180342149,
+      "batch_render_s": 1.1597917003999925,
       "segmentation": false
     },
     {
       "worlds": 1024,
-      "compile_s": 0.20998462100000026,
-      "s_per_call": 0.012747429499999897,
-      "frames_per_s": 80329.92063223477,
-      "batch_render_s": 0.866825205999993,
+      "compile_s": 0.23518406300000194,
+      "s_per_call": 0.01701489279999997,
+      "frames_per_s": 60182.57135302092,
+      "batch_render_s": 1.1570127103999979,
       "segmentation": false
     }
   ]

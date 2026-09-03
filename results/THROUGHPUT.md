@@ -83,9 +83,17 @@ call produces one frame for every world at once; an episode needs 68 of them.
 
 | worlds | ms/call | frames/s | render a whole episode batch |
 |---|---|---|---|
-| 64 | 16.26 | 3,937 | 1.11 s |
-| 256 | 13.38 | 19,129 | 0.91 s |
-| 1024 | 12.75 | **80,330** | **0.87 s** |
+| 64 | 16.25 | 3,939 | 1.10 s |
+| 256 | 17.06 | 15,010 | 1.16 s |
+| 1024 | 17.01 | **60,183** | **1.16 s** |
+
+These include the **mandatory `mjx.refit_bvh`**, which `mjx.render` does not do
+for you. Without it the renderer keeps every geom at the pose it had when the
+context was built, so a board that moves vanishes from frame while a board that
+stays put renders perfectly — measured as board-visible-in-all-frames going
+from 48% to 98.4% once the refit was added. Refit costs 33% on top of render
+alone (1.16 s against 0.87 s at B=1024); timing render without it measured a
+configuration that cannot be used.
 
 **Per-call cost is nearly flat from 64 to 1024 worlds** — 13-16 ms whatever the
 width — so frames/s scales almost linearly and the renderer is far from being
@@ -99,10 +107,10 @@ At the B=1024 operating point:
 | | seconds per 1024-episode batch |
 |---|---|
 | physics | 3.84 |
-| rendering, 68 frames | 0.87 |
-| **total** | **4.71** |
+| rendering + BVH refit, 68 frames | 1.16 |
+| **total** | **5.00** |
 
-**~782,000 episodes/hour with pixels, 52x the rig.** Rendering is 23%
+**~737,000 episodes/hour with pixels, 49x the rig.** Rendering is 30%
 overhead. **Pixels survive as the observation** and masks stay a fidelity
 choice rather than a throughput necessity.
 
@@ -162,3 +170,25 @@ never stepped. It does affect anything run on Warp from here on.
 
 Note also that `make_data` takes `naconmax` and `njmax` — there is no `nconmax`
 argument, despite the error message naming one.
+
+
+## End to end, verified by looking at the frames
+
+`bench/pixels_modal.py` runs the real thing: 64 episodes of real gestures,
+batch-major, the fitted chase camera driving a mocap-mounted model camera,
+every frame rendered.
+
+| | |
+|---|---|
+| run | 0.58 s for 64 episodes = **397,188 episodes/hour** |
+| board visible, last frame | **100%** of episodes |
+| board visible, every frame | **98.4%** of episodes |
+| board visible among settled episodes | **100%** |
+
+The frames were rendered and looked at, not merely summarised: the board is a
+recognisable skateboard — deck, trucks, four wheels — and it stays framed and
+tracked through an episode where it rolls 1.79 m and rotates.
+
+**The 397K/hour figure is at B=64, and batch size is the whole story here.**
+Physics alone at B=64 would be well under the B=1024 rate; the 737K/hour above
+is the number to plan against.
