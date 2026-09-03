@@ -96,3 +96,25 @@ optimal set is.
 
 Until that refit lands, treat the stored `SkateParams` as **unvalidated against
 the current objective**.
+
+## What the overlay did and did not confirm
+
+Standing rule 1 says render it and look. Done, on a gesture that does touch the
+deck, at the stored gain and at the objective's optimum:
+
+    gain 2490.4   IoU per frame  0.420  0.088  0.000  0.000  0.078
+    gain   45.0   IoU per frame  0.420  0.088  0.000  0.000  0.084
+
+**The overlay could not tell the two apart.** A 55x change in the deck force
+produces near-identical silhouettes on this sample. So the sweep's preference
+comes from the population, not from any single dramatic case, and the n=120
+two-half sweep — not this picture — is what the finding rests on.
+
+**What the picture did show is worse, and applies to both.** IoU collapses to
+**zero by the third frame** at either gain: the simulated and real boards stop
+overlapping at all within roughly 100 ms, and the sim silhouette drifts up the
+frame while the real one holds its position. Whatever the right `touch_gain`
+is, the trajectories part company almost immediately — which no amount of
+retuning a single force constant is going to fix.
+
+That is the more important open question, and it is not answered here.
