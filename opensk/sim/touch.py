@@ -197,8 +197,8 @@ class TouchModel:
             # only 26 stayed physical, and 26 went non-finite. The cap never
             # binds on the captured corpus, so the fitted parameters are
             # unaffected (see results/THROUGHPUT.md).
-            thrust = float(np.clip(thrust, -self.p.touch_force_max,
-                                   self.p.touch_force_max))
+            thrust = float(np.clip(thrust, -self.p.shove_force_max,
+                                   self.p.shove_force_max))
             self.sim.apply_force(
                 np.array([thrust * np.cos(yaw), thrust * np.sin(yaw), 0.0]),
                 self.sim.data.xipos[self.sim.deck_bid].copy())

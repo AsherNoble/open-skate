@@ -135,6 +135,19 @@ class SkateParams:
     # statistic, since a 1x1 render still yields well-formed frames at a
     # plausible rate. 64x128 keeps the phone's 19.5:9 at a size a world model
     # can consume; not fitted, so not in FIT_SPEC.
+    # Ceiling on the ground shove, newtons. Separate from `touch_force_max`
+    # because they are different claims: that one is how hard a finger can PULL
+    # the deck, this one how hard a drag can PUSH the board along. Capping the
+    # shove at touch_force_max removed the numerical instability but left 854 N
+    # acting on a 0.9 kg deck, which still throws the board 10 m and 2.3 m into
+    # the air -- out of frame, so most rendered observations are blank.
+    #
+    # The captured corpus does not constrain this: the score is bit-identical
+    # with and without the 854 N cap, so no real gesture ever reaches it. That
+    # makes the ceiling free to choose on other grounds, and the honest way to
+    # choose it is to lower it until the corpus score DOES move, then stay
+    # above that. See results/SHOVE_CAP.md.
+    shove_force_max: float = 854.0
     render_width: int = 64
     render_height: int = 128
 
