@@ -95,3 +95,29 @@ def test_filtering_keeps_frames_aligned_with_episodes(tmp_path):
                                 np.zeros((5, 17)), ep)).filtered()
     assert len(got) == 3
     assert [int(got.rgb[i].flat[0]) for i in range(3)] == [0, 2, 3]
+
+
+def test_the_world_model_refuses_an_underdetermined_fit(tmp_path):
+    """p >> n cannot generalise, so a fit that fat must fail loudly.
+
+    A least-squares model with more features than rows interpolates the
+    training set exactly and tells you nothing about whether the pipeline
+    carries signal -- the failure mode this whole check exists to detect.
+    """
+    import pytest
+
+    from opensk.rl.env import Episodes
+    from opensk.rl.worldmodel import evaluate
+
+    rng = np.random.default_rng(0)
+    def shard(seed):
+        f = rng.random((2, 3, 128, 64, 3)).astype(np.float32)
+        ep = Episodes(pos=np.zeros((2, 3, 3)), quat=np.zeros((2, 3, 4)),
+                      roll_deg=np.zeros(2), yaw_deg=np.zeros(2),
+                      peak_height=np.zeros(2), air_s=np.zeros(2),
+                      displacement=np.zeros(2), valid=np.ones(2, bool), rgb=f)
+        return store.load(store.save(tmp_path / f"s{seed}.npz",
+                                     np.zeros((2, 17)), ep))
+
+    with pytest.raises(ValueError, match="underdetermined"):
+        evaluate(shard(0), shard(1), downsample=1)

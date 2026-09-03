@@ -42,13 +42,31 @@ class Scores:
                 f"{'BEATS' if self.beats_persistence else 'LOSES TO'} persistence")
 
 
-def frame_pairs(shard, stride: int = 1):
+# Frames are downsampled by this factor before fitting. NOT cosmetic: a full
+# 128x64x3 frame is 24,576 features, and a 64-episode batch gives ~3,500
+# training rows. With p >> n a least-squares fit can only memorise, so the
+# comparison against persistence would measure nothing at all. At factor 8 the
+# frame is 16x8x3 = 384 features, comfortably fewer than the rows.
+DOWNSAMPLE = 8
+
+
+def _shrink(frames: np.ndarray, factor: int) -> np.ndarray:
+    """Block-mean downsample over the two spatial axes."""
+    if factor == 1:
+        return frames
+    b, f, h, w, c = frames.shape
+    h2, w2 = h // factor, w // factor
+    trimmed = frames[:, :, :h2 * factor, :w2 * factor]
+    return trimmed.reshape(b, f, h2, factor, w2, factor, c).mean(axis=(3, 5))
+
+
+def frame_pairs(shard, stride: int = 1, downsample: int = DOWNSAMPLE):
     """(current frame, action, next frame) triples from a shard.
 
     Only from episodes marked valid: an unstable episode's frames are a record
     of the solver failing, and a model that learns them learns that.
     """
-    frames = shard.frames_float()          # (B, F, H, W, 3)
+    frames = _shrink(shard.frames_float(), downsample)   # (B, F, h, w, 3)
     keep = np.asarray(shard.valid, dtype=bool)
     frames, actions = frames[keep], np.asarray(shard.actions)[keep]
     cur = frames[:, :-stride].reshape(-1, *frames.shape[2:])
@@ -89,15 +107,21 @@ def predict(w, cur, act):
     return (x @ w).reshape(cur.shape)
 
 
-def evaluate(train_shard, held_shard, *, ridge: float = 1e-3) -> Scores:
+def evaluate(train_shard, held_shard, *, ridge: float = 1e-3,
+             downsample: int = DOWNSAMPLE) -> Scores:
     """Train on one shard, score on another. Never on the same episodes.
 
     Frames within an episode are almost identical to each other, so a split
     that cuts across frames rather than episodes leaks the answer and every
     model looks excellent.
     """
-    cur, act, nxt = frame_pairs(train_shard)
-    hcur, hact, hnxt = frame_pairs(held_shard)
+    cur, act, nxt = frame_pairs(train_shard, downsample=downsample)
+    hcur, hact, hnxt = frame_pairs(held_shard, downsample=downsample)
+    if cur.shape[0] <= cur[0].size + act[0].size + 1:
+        raise ValueError(
+            f"{cur.shape[0]} training rows for {cur[0].size + act[0].size + 1} "
+            "features: underdetermined, so the fit would memorise rather than "
+            "generalise. Increase `downsample` or collect more episodes.")
     w = train_linear(cur, act, nxt, ridge=ridge)
     pers, meanf = baselines(hcur, hnxt, cur.mean(axis=0))
     return Scores(model=float(np.mean((predict(w, hcur, hact) - hnxt) ** 2)),

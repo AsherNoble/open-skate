@@ -51,6 +51,13 @@ def collect(batch: int) -> dict:
     back = store.load(path)
     kept = back.filtered()
 
+    # A second, independent batch, so the world model is judged on episodes it
+    # has never seen. Frames within one episode are nearly identical, so a
+    # split across frames rather than episodes would leak the answer.
+    held_actions = env.sample_actions(batch, seed=99)
+    held = env.step(held_actions)
+    held_path = store.save("/tmp/shard_00001.npz", held_actions, held)
+
     grey = np.asarray(ep.rgb).mean(axis=-1)
     bg = np.median(grey, axis=(2, 3), keepdims=True)
     visible = (np.abs(grey - bg) > 0.05).mean(axis=(2, 3)) > 0.005
@@ -84,6 +91,14 @@ def collect(batch: int) -> dict:
             if np.asarray(ep.valid).any() else -1.0),
         "kept_after_filter": len(kept),
     }
+    from opensk.rl.worldmodel import evaluate
+
+    scores = evaluate(back, store.load(held_path))
+    res["worldmodel"] = {
+        "model_mse": scores.model, "persistence_mse": scores.persistence,
+        "mean_frame_mse": scores.mean_frame,
+        "beats_persistence": scores.beats_persistence}
+    print("world model:", scores, flush=True)
     print(json.dumps(res, indent=2), flush=True)
 
     # Frames and trajectory for a typical PHYSICAL episode, so "why is the
