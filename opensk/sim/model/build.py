@@ -107,7 +107,7 @@ def build_board(p: SkateParams) -> str:
                collide a cylinder with a box or a mesh. This visual-only
                cylinder is what a wheel looks like; it has contype/conaffinity
                0, so it changes the picture and nothing else. -->
-          <geom name="vis_{name}_wheel_l" type="cylinder"
+          <geom name="hw_{name}_wheel_l" type="cylinder"
                 size="{p.wheel_radius:.6f} 0.011"
                 euler="90 0 0" {_VIS} material="mat_wheel"/>
         </body>
@@ -118,7 +118,7 @@ def build_board(p: SkateParams) -> str:
                 mass="{p.wheel_mass:.6f}"
                 friction="{p.wheel_friction_slide:.6f} {p.wheel_friction_spin:.6f} {p.wheel_friction_roll:.6f}"
                 condim="3" {_sol(p)} material="mat_wheel"/>
-          <geom name="vis_{name}_wheel_r" type="cylinder"
+          <geom name="hw_{name}_wheel_r" type="cylinder"
                 size="{p.wheel_radius:.6f} 0.011"
                 euler="90 0 0" {_VIS} material="mat_wheel"/>
         </body>
