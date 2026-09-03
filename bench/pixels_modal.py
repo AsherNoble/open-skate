@@ -114,11 +114,23 @@ def run(batch: int, save_frames: int = 4) -> dict:
 
     rgb = np.asarray(out.rgb)
     frames = rgb.shape[0]
+    # Per-episode visibility, not one number over everything. A single
+    # aggregate cannot tell "the renderer is broken" from "the board flew out
+    # of frame", and those need completely different fixes.
+    visible = (rgb.std(axis=-1) > 0.02).any(axis=(2, 3))     # (frames, batch)
+    disp = np.linalg.norm(np.asarray(out.pos)[-1, :, :2]
+                          - np.asarray(out.pos)[0, :, :2], axis=-1)
     res = {"batch": batch, "compile_s": compile_s, "run_s": run_s,
            "episodes_per_hour": batch / run_s * 3600.0,
            "frames": frames, "rgb_shape": list(rgb.shape),
            "mean_pixel": float(rgb.mean()),
-           "frac_nonbackground": float((rgb.std(axis=-1) > 0.02).mean())}
+           "board_visible_first_frame": float(visible[0].mean()),
+           "board_visible_last_frame": float(visible[-1].mean()),
+           "board_visible_all_frames": float(visible.all(axis=0).mean()),
+           "median_displacement_m": float(np.median(disp)),
+           "visible_and_settled": float(
+               visible.all(axis=0)[disp < 2.0].mean() if (disp < 2.0).any() else -1.0),
+           "frac_settled": float((disp < 2.0).mean())}
     print(json.dumps(res, indent=2), flush=True)
     # A few frames come back so the render can actually be LOOKED at. Two
     # "findings" in this project were bugs that statistics hid.
@@ -126,9 +138,13 @@ def run(batch: int, save_frames: int = 4) -> dict:
     # a few hundred thousand floats is what terminated the runner last time.
     import io
 
+    # Frames from the CALMEST episode: a board that flew 20 m leaves an empty
+    # frame, which looks identical to a broken renderer.
+    calm = int(np.argmin(disp))
     buf = io.BytesIO()
     np.savez_compressed(
-        buf, frames=rgb[::max(1, frames // save_frames)][:save_frames, 0])
+        buf, frames=rgb[::max(1, frames // save_frames)][:save_frames, calm],
+        calm_displacement=disp[calm])
     res["sample_npz"] = buf.getvalue()
     return res
 

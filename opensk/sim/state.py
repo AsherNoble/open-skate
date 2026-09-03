@@ -89,3 +89,28 @@ def quat_delta(q_prev: np.ndarray, q_next: np.ndarray) -> np.ndarray:
     """
     d = quat_mul(quat_conj(q_prev), q_next)
     return d if d[0] >= 0 else -d  # keep the short way round
+
+
+def quat_from_mat_safe(R: np.ndarray) -> np.ndarray:
+    """wxyz quaternion from a rotation matrix, using the largest-diagonal case.
+
+    Numpy-only and branch-ful ON PURPOSE: it is called once, offline, to build
+    a constant. The traced code paths compose quaternions instead of converting
+    matrices, because the trace form is singular at a half turn -- exactly the
+    pose a flipping board reaches.
+    """
+    m = np.asarray(R, dtype=float)
+    t = np.trace(m)
+    if t > 0:
+        s = np.sqrt(t + 1.0) * 2.0
+        return np.array([0.25 * s, (m[2, 1] - m[1, 2]) / s,
+                         (m[0, 2] - m[2, 0]) / s, (m[1, 0] - m[0, 1]) / s])
+    i = int(np.argmax(np.diag(m)))
+    j, k = (i + 1) % 3, (i + 2) % 3
+    s = np.sqrt(1.0 + m[i, i] - m[j, j] - m[k, k]) * 2.0
+    q = np.zeros(4)
+    q[0] = (m[k, j] - m[j, k]) / s
+    q[1 + i] = 0.25 * s
+    q[1 + j] = (m[j, i] + m[i, j]) / s
+    q[1 + k] = (m[k, i] + m[i, k]) / s
+    return q

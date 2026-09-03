@@ -164,3 +164,42 @@ def camera_pose(target, yaw, params, xp=np):
     position = target - params.cam_distance * forward
     mat = xp.stack([right, up, -forward], axis=-1)
     return position, mat
+
+
+def _camera_base_quat(pitch_deg: float) -> np.ndarray:
+    """Constant part of the camera's orientation: everything but the yaw.
+
+    The full camera rotation factorises as `Rz(yaw) @ M`, where M depends only
+    on the (fixed) pitch. Computing M's quaternion once in numpy and composing
+    a pure yaw rotation onto it at run time avoids ever converting a general
+    rotation matrix back to a quaternion -- the trace form is singular exactly
+    where a flipping board puts it, which has already cost this project one bug.
+    """
+    from ..sim.state import quat_from_mat_safe
+
+    p = np.radians(pitch_deg)
+    cp, sp = np.cos(p), np.sin(p)
+    # Columns are (-right, up, -forward), NOT (right, up, -forward). MuJoCo
+    # cameras follow the OpenGL convention: view along -z, +y up, and the frame
+    # right-handed. Since right x up = +forward, the frame (right, up,
+    # -forward) has determinant -1 -- a reflection, not a rotation, which
+    # `quat_from_mat_safe` cannot represent and which silently produced a
+    # camera pointing somewhere else entirely.
+    M = np.array([[-0.0, -sp, -cp],
+                  [-1.0, 0.0, 0.0],
+                  [-0.0, cp, -sp]])
+    assert abs(np.linalg.det(M) - 1.0) < 1e-9, "camera frame must be a rotation"
+    return quat_from_mat_safe(M)
+
+
+def camera_quat(yaw, pitch_deg: float, base_quat, xp=np):
+    """wxyz orientation of the chase camera: a yaw applied to the fixed base."""
+    half = 0.5 * yaw
+    qz = xp.stack([xp.cos(half), xp.zeros_like(half), xp.zeros_like(half),
+                   xp.sin(half)])
+    w0, x0, y0, z0 = qz[0], qz[1], qz[2], qz[3]
+    w1, x1, y1, z1 = base_quat[0], base_quat[1], base_quat[2], base_quat[3]
+    return xp.stack([w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1,
+                     w0 * x1 + x0 * w1 + y0 * z1 - z0 * y1,
+                     w0 * y1 - x0 * z1 + y0 * w1 + z0 * x1,
+                     w0 * z1 + x0 * y1 - y0 * x1 + z0 * w1])

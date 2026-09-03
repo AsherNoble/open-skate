@@ -210,10 +210,19 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK) -> str:
          renderer takes its image size from the CAMERA, not from
          `vis.global_.offwidth/offheight`, and an unset resolution renders
          1x1 images. That failure is invisible in every summary statistic --
-         a 1x1 render still produces well-formed frames at a plausible rate. -->
-    <camera name="chase" mode="fixed" fovy="{p.cam_fov_deg:.4f}"
-            resolution="{p.render_width} {p.render_height}"
-            pos="0 0 1" xyaxes="0 -1 0 0 0 1"/>
+         a 1x1 render still produces well-formed frames at a plausible rate.
+
+         The camera rides a MOCAP body. Writing `cam_xpos`/`cam_xmat` directly
+         does not work: those are OUTPUTS, recomputed from the model every time
+         kinematics runs, so a chase camera written that way silently reverts
+         to its MJCF pose. Measured -- the board was in frame 0 of every
+         episode and in the last frame of 3%, including episodes that never
+         moved 2 m. Mocap pose is an INPUT and survives. -->
+    <body name="cam_mount" mocap="true" pos="0 0 1">
+      <camera name="chase" mode="fixed" fovy="{p.cam_fov_deg:.4f}"
+              resolution="{p.render_width} {p.render_height}"
+              pos="0 0 0" quat="1 0 0 0"/>
+    </body>
 {park}
 {build_board(p)}
   </worldbody>

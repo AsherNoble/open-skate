@@ -65,13 +65,15 @@ def initial_batch(mx, d0, batch: int):
 
 
 def make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots: int,
-                  substeps: int, render=None, cam_id: int = 0):
+                  substeps: int, render=None, cam_id: int = 0,
+                  mocap_id: int = 0):
     """Build the per-FRAME function: `substeps` of physics, then one render."""
     import jax
     import jax.numpy as jnp
     from mujoco import mjx
 
     dt = params.timestep
+    base_quat = jnp.asarray(g._camera_base_quat(params.cam_pitch_deg))
 
     def wrench(data, fingers, cam, points, seg_t, t0, t):
         """Forces for ONE environment. vmapped over the batch by the caller."""
@@ -122,16 +124,20 @@ def make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots: int,
         data = carry[0]
         rgb = None
         if render is not None:
-            # Point the model's camera where the FITTED chase camera is looking,
-            # per world, before rendering. Without this the frames come from
-            # wherever the MJCF happened to put the camera, and the pixels stop
-            # being the pixels the touch model agrees with.
-            pos, mat = jax.vmap(lambda c: g.camera_pose(c[0], c[1], params,
-                                                        xp=jnp))(carry[2])
+            # Point the FITTED chase camera, per world, before rendering.
+            #
+            # Through MOCAP, not cam_xpos/cam_xmat: those are outputs,
+            # recomputed from the model whenever kinematics runs, so a camera
+            # written that way silently reverts to its MJCF pose. Measured
+            # before the fix: the board was in frame 0 of every episode and in
+            # the last frame of 3%, including episodes that never moved 2 m.
+            pos, quat = jax.vmap(lambda c: (
+                g.camera_pose(c[0], c[1], params, xp=jnp)[0],
+                g.camera_quat(c[1], params.cam_pitch_deg, base_quat, xp=jnp),
+            ))(carry[2])
             data = data.replace(
-                cam_xpos=data.cam_xpos.at[:, cam_id].set(pos),
-                cam_xmat=data.cam_xmat.at[:, cam_id].set(
-                    mat.reshape(mat.shape[0], *data.cam_xmat.shape[2:])))
+                mocap_pos=data.mocap_pos.at[:, mocap_id].set(pos),
+                mocap_quat=data.mocap_quat.at[:, mocap_id].set(quat))
             # Outside every vmap, by necessity: the render context owns Warp
             # buffers of a fixed nworld and cannot be traced through one.
             rgb, data = render(data)
@@ -146,7 +152,7 @@ def make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots: int,
 
 def rollout_batched(mx, model, params, deck_bid, deck_gids, init_data,
                     points, seg_t, t0, *, n_slots: int = 2, render=None,
-                    cam_id: int = 0,
+                    cam_id: int = 0, mocap_id: int = 0,
                     seconds: float = EPISODE_SECONDS) -> BatchRollout:
     """Run a whole batch of episodes together. `init_data` carries the batch axis.
 
@@ -159,7 +165,7 @@ def rollout_batched(mx, model, params, deck_bid, deck_gids, init_data,
     n_frames, substeps = frames_and_substeps(params, seconds)
     batch = points.shape[0]
     frame = make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots,
-                          substeps, render, cam_id)
+                          substeps, render, cam_id, mocap_id)
 
     fingers = tuple(jax.tree.map(lambda x: jnp.broadcast_to(x, (batch,) + x.shape),
                                  initial_finger(xp=jnp)) for _ in range(n_slots))
