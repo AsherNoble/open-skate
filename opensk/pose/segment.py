@@ -49,6 +49,31 @@ class BoardMask:
         return self.length_px / max(self.width_px, 1e-6)
 
 
+def _fill_holes(component: np.ndarray) -> np.ndarray:
+    """Close interior holes in a binary component, keeping its outline.
+
+    The threshold is on DARKNESS, so the deck's bright underside graphic is cut
+    out of the middle of the board -- the mask comes back as a peanut with a
+    narrow waist and internal holes while the simulator renders a solid deck.
+    Every silhouette score in this project then compares a solid blob against a
+    holed one, which penalises a correct pose for a reason that has nothing to
+    do with the pose.
+
+    Seen by rendering the mask outline over its own frame: the outline traces
+    the board correctly and then loops around the graphic. The 9x9 CLOSE above
+    is not enough because the graphic is far larger than the kernel.
+
+    Flood from the border of the complement: anything the flood cannot reach is
+    enclosed, and therefore board.
+    """
+    m = component.astype(np.uint8)
+    h, w = m.shape
+    flood = np.zeros((h + 2, w + 2), np.uint8)
+    outside = (1 - m).copy()
+    cv2.floodFill(outside, flood, (0, 0), 0)
+    return (m | outside).astype(bool)
+
+
 def board_mask(frame_bgr: np.ndarray, *, dark_percentile: float | None = None
                ) -> BoardMask | None:
     """Largest plausible dark elongated blob in the play area.
@@ -113,7 +138,7 @@ def board_mask(frame_bgr: np.ndarray, *, dark_percentile: float | None = None
                 long_ang = ang if rw >= rh else ang + 90.0
                 long_ang = (long_ang + 90.0) % 180.0 - 90.0
                 full = np.zeros((h, w), dtype=bool)
-                full[y0:y1, x0:x1] = labels == i
+                full[y0:y1, x0:x1] = _fill_holes(labels == i)
                 best = BoardMask(full, np.array([cx + x0, cy + y0]),
                                  float(long_ang), float(length), float(width),
                                  float(area), float(min(score, 1.0)))

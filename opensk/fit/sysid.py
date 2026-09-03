@@ -88,7 +88,11 @@ CACHE_DIR = pathlib.Path(__file__).resolve().parents[2] / "cache" / "masks"
 # Bump when segmentation changes shape. Cached masks are derived from
 # board_mask, so a change there invalidates every entry -- and a stale cache is
 # silent: the fit simply optimises against masks that no longer exist.
-SEGMENTATION_VERSION = 2
+# 3: interior holes are filled. The dark threshold cut the deck's bright
+# graphic out of the middle of the board, so real masks were peanuts with holes
+# while the simulator renders a solid deck -- a stale cache here would silently
+# keep scoring against the old shapes.
+SEGMENTATION_VERSION = 3
 
 
 def _cache_path(sample: Sample, h: int, w: int) -> pathlib.Path:
