@@ -124,8 +124,15 @@ it is worth doing.
 ### Masks are not cheaper than pixels
 
 `render_with_segmentation` returns RGB, depth and segmentation together, so it
-is dearer than RGB alone rather than cheaper — measured at 1x1 as 24% dearer,
-and being re-measured at a real resolution alongside the table above.
+is dearer than RGB alone rather than cheaper. At a real 128x64:
+
+| worlds | ms/call | frames/s | episode batch |
+|---|---|---|---|
+| 256 | 16.35 | 15,662 | 1.11 s |
+| 1024 | 13.91 | 73,642 | 0.95 s |
+
+**9% dearer than RGB** at B=1024 (0.95 s against 0.87 s) — a smaller penalty
+than the 1x1 run suggested (24%), but still a penalty.
 
 Either way the plan's "try masks first, they are the cheap mitigation" is the
 wrong shape: masks cost MORE to produce, and their value is entirely in closing
