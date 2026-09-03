@@ -157,7 +157,8 @@ def build_corpus(limit: int | None = None, *, height: int = 224,
                  min_frames: int = 4, require_motion: bool = True,
                  use_cache: bool = True, root: pathlib.Path | None = None,
                  camera: dict | None = None, park: str | None = None,
-                 push: bool = False, verbose: bool = True) -> Corpus:
+                 push: bool = False, verbose: bool = True,
+                 want_deck: bool = True) -> Corpus:
     """Segment usable samples once, up front.
 
     Three filters, each measured rather than guessed:
@@ -183,7 +184,12 @@ def build_corpus(limit: int | None = None, *, height: int = 224,
             break
         seen += 1
         try:
-            if not _touches_deck(s, tm):
+            # `want_deck=False` inverts this to collect the gestures that
+            # never reach the deck -- pure ground drags. Those are thrown away
+            # for fitting the touch model, and they are the ONLY samples that
+            # say anything about the ground shove, which the deck corpus leaves
+            # completely unidentified (see results/SHOVE_CAP.md).
+            if _touches_deck(s, tm) != want_deck:
                 continue
         except Exception:
             continue
