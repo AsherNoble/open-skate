@@ -103,7 +103,14 @@ def test_the_two_nestings_agree_on_outcomes(both):
         assert abs(r.cpu_sd - r.mjx_sd) < 0.05 * max(r.cpu_sd, 1e-9), (
             f"{r.name}: spreads differ, {r.cpu_sd:.4f} vs {r.mjx_sd:.4f}")
         assert r.ks < 0.30, f"{r.name}: distributions differ, KS {r.ks:.2f}"
-        assert r.rank_corr > 0.85, f"{r.name}: ranking differs, rho {r.rank_corr:.2f}"
+        # Rotation is the chaotic field and translation is not -- the same
+        # split the CPU-vs-MJX gate already makes. A board on the point of
+        # flipping goes either way, so two float orderings legitimately rank
+        # those gestures differently; height, air time and travel do not have
+        # that freedom and are held to a far tighter bar.
+        floor = 0.70 if r.name in ("roll_deg", "yaw_deg") else 0.95
+        assert r.rank_corr > floor, (
+            f"{r.name}: ranking differs, rho {r.rank_corr:.2f} < {floor}")
 
 
 def test_the_first_frame_is_identical(both):
