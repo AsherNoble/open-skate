@@ -1,0 +1,20 @@
+{
+  "resolution": [
+    128,
+    64
+  ],
+  "results": [
+    {
+      "worlds": 64,
+      "error": "NotImplementedError: render only implemented for MuJoCo Warp."
+    },
+    {
+      "worlds": 256,
+      "error": "NotImplementedError: render only implemented for MuJoCo Warp."
+    },
+    {
+      "worlds": 1024,
+      "error": "NotImplementedError: render only implemented for MuJoCo Warp."
+    }
+  ]
+}

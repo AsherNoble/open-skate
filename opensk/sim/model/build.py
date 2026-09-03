@@ -201,6 +201,13 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK) -> str:
   </visual>
   <worldbody>
     <light pos="2 -2 4" dir="-0.4 0.4 -1" directional="true"/>
+    <!-- The chase camera, as a model element. The CPU renderer drives a free
+         camera from `sim/camera.py` and ignores this one, but MJX's batch
+         renderer can only render cameras that exist in the model, and its
+         pose is written into `cam_xpos`/`cam_xmat` per world. The fovy is the
+         fitted vertical field of view so both paths frame the board alike. -->
+    <camera name="chase" mode="fixed" fovy="{p.cam_fov_deg:.4f}"
+            pos="0 0 1" xyaxes="0 -1 0 0 0 1"/>
 {park}
 {build_board(p)}
   </worldbody>

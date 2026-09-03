@@ -35,18 +35,21 @@ def probe() -> dict:
     import importlib
 
     out = {}
-    for name in ("warp", "mujoco_warp", "mujoco.mjx"):
-        try:
-            m = importlib.import_module(name)
-            out[name] = {"version": getattr(m, "__version__", "?"),
-                         "render_like": sorted(
-                             a for a in dir(m)
-                             if any(k in a.lower()
-                                    for k in ("render", "camera", "pixel", "rgb")))}
-        except Exception as exc:
-            out[name] = {"error": f"{type(exc).__name__}: {exc}"}
-    for k, v in out.items():
-        print(k, v, flush=True)
+    import inspect
+
+    # The batch renderer lives in mujoco.mjx itself, not in a separate
+    # mujoco_warp package -- `mujoco-mjx[warp]` installs only warp-lang, and
+    # `import mujoco_warp` fails. render_with_segmentation is the interesting
+    # one: masks are the cheap way past the appearance gap.
+    from mujoco import mjx
+    for name in ("create_render_context", "render", "render_with_segmentation",
+                 "get_rgb"):
+        fn = getattr(mjx, name)
+        doc = (inspect.getdoc(fn) or "").strip().splitlines()
+        print(f"--- mjx.{name}{inspect.signature(fn)}", flush=True)
+        for line in doc[:24]:
+            print("    " + line, flush=True)
+        out[name] = str(inspect.signature(fn))
     return out
 
 
