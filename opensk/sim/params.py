@@ -129,6 +129,14 @@ class SkateParams:
     # Screen aspect (width/height). All three rig devices are 19.5:9 to within
     # 0.05%, so this is a constant, not a per-device value. See GESTURES.md.
     screen_aspect: float = 375.0 / 812.0
+    # Batch-render size, in pixels. MJX's batch renderer takes the image size
+    # from the CAMERA, not from `vis.global_.offwidth/offheight`, and an unset
+    # resolution silently renders 1x1 -- which is invisible in every summary
+    # statistic, since a 1x1 render still yields well-formed frames at a
+    # plausible rate. 64x128 keeps the phone's 19.5:9 at a size a world model
+    # can consume; not fitted, so not in FIT_SPEC.
+    render_width: int = 64
+    render_height: int = 128
 
     # --- push --------------------------------------------------------------
     # A drag landing on the ground rather than the deck is a push. Modelled as

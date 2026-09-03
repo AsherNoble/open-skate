@@ -50,6 +50,8 @@ image = (
 # The phone's aspect, 19.5:9, at a size a world model can actually consume.
 # Rendering at capture resolution and downsampling would measure the wrong
 # thing: what matters is the cost of the frames that get trained on.
+# Reporting only. The size that actually applies is the camera's `resolution`
+# in the MJCF, from SkateParams.render_height/render_width; these must match.
 RENDER_H, RENDER_W = 128, 64
 
 
@@ -68,7 +70,9 @@ def bench(worlds: list[int], frames: int = 68, segmentation: bool = False) -> di
 
     p = SkateParams()
     mjm = mujoco.MjModel.from_xml_string(build_scene(p, FLAT_PARK))
-    mjm.vis.global_.offheight, mjm.vis.global_.offwidth = RENDER_H, RENDER_W
+    # NOTE: offheight/offwidth do NOT size the batch renderer -- it reads the
+    # CAMERA's resolution, set in the MJCF. Setting them here rendered 1x1
+    # images and produced throughput numbers that meant nothing.
     import inspect
     print("put_model", inspect.signature(mjx.put_model), flush=True)
     print("make_data", inspect.signature(mjx.make_data), flush=True)

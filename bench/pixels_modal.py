@@ -32,6 +32,8 @@ image = (
     .add_local_dir(str(_ROOT / "opensk"), remote_path="/root/src/opensk")
 )
 
+# Reporting only. The size that actually applies is the camera's `resolution`
+# in the MJCF, from SkateParams.render_height/render_width; these must match.
 RENDER_H, RENDER_W = 128, 64
 
 
@@ -55,7 +57,9 @@ def run(batch: int, save_frames: int = 4) -> dict:
     p = SkateParams()
     xml = build_scene(p, FLAT_PARK)
     mjm = mujoco.MjModel.from_xml_string(xml)
-    mjm.vis.global_.offheight, mjm.vis.global_.offwidth = RENDER_H, RENDER_W
+    # NOTE: offheight/offwidth do NOT size the batch renderer -- it reads the
+    # CAMERA's resolution, set in the MJCF. Setting them here rendered 1x1
+    # images and produced throughput numbers that meant nothing.
     cam_id = mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_CAMERA, "chase")
     cpu = SkateSim(p, FLAT_PARK)
     cpu.reset(seed=0)

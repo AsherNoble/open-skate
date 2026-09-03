@@ -206,7 +206,13 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK) -> str:
          renderer can only render cameras that exist in the model, and its
          pose is written into `cam_xpos`/`cam_xmat` per world. The fovy is the
          fitted vertical field of view so both paths frame the board alike. -->
+         The `resolution` is NOT optional and NOT cosmetic: MJX's batch
+         renderer takes its image size from the CAMERA, not from
+         `vis.global_.offwidth/offheight`, and an unset resolution renders
+         1x1 images. That failure is invisible in every summary statistic --
+         a 1x1 render still produces well-formed frames at a plausible rate. -->
     <camera name="chase" mode="fixed" fovy="{p.cam_fov_deg:.4f}"
+            resolution="{p.render_width} {p.render_height}"
             pos="0 0 1" xyaxes="0 -1 0 0 0 1"/>
 {park}
 {build_board(p)}

@@ -63,29 +63,46 @@ take.
 
 ## Rendering (A10G, MJX Warp batch renderer) — it does not erase the margin
 
+> **RETRACTED AND RE-MEASURED.** The first version of this section reported
+> ~95K frames/s at 128x64. It was **wrong**: the renderer takes its image size
+> from the CAMERA's `resolution`, not from `vis.global_.offwidth/offheight`,
+> and with resolution unset it rendered **1x1 pixel images**. The rate was real
+> and the images were single pixels, so the number said nothing about 128x64.
+>
+> Nothing in the summary statistics revealed this — a 1x1 render produces
+> well-formed frames at a plausible rate, and `frac_nonbackground` was the only
+> figure that looked wrong. It was caught by printing `rgb.shape` on an
+> end-to-end run. **This is the third time in this project a "finding" turned
+> out to be my own bug hidden by statistics**, and the second where the fix was
+> to look at the actual pixels rather than a summary of them.
+>
+> The table below is the re-measurement at a real resolution.
+
 128x64 RGB, the phone's 19.5:9 at a size a world model consumes. One `render`
 call produces one frame for every world at once; an episode needs 68 of them.
 
 | worlds | ms/call | frames/s | render a whole episode batch |
 |---|---|---|---|
-| 64 | 10.23 | 6,256 | 0.70 s |
-| 256 | 10.02 | 25,541 | 0.68 s |
-| 1024 | 10.73 | **95,463** | **0.73 s** |
-| 4096 | 19.71 | 207,799 | 1.34 s |
+| 64 | 16.26 | 3,937 | 1.11 s |
+| 256 | 13.38 | 19,129 | 0.91 s |
+| 1024 | 12.75 | **80,330** | **0.87 s** |
 
-**Per-call cost is nearly flat from 64 to 1024 worlds** — about 10 ms whatever
-the width — so frames/s scales almost linearly and the renderer is far from
-being the bottleneck it was expected to be.
+**Per-call cost is nearly flat from 64 to 1024 worlds** — 13-16 ms whatever the
+width — so frames/s scales almost linearly and the renderer is far from being
+the bottleneck it was expected to be. (The 1x1 measurement got this part right
+for the wrong reason: at one pixel per image the cost was almost entirely
+per-call overhead. At a real resolution the per-call cost is only 25% higher,
+which is what actually makes the conclusion survive.)
 
 At the B=1024 operating point:
 
 | | seconds per 1024-episode batch |
 |---|---|
 | physics | 3.84 |
-| rendering, 68 frames | 0.73 |
-| **total** | **4.57** |
+| rendering, 68 frames | 0.87 |
+| **total** | **4.71** |
 
-**~806,000 episodes/hour with pixels, still 54x the rig.** Rendering is 19%
+**~782,000 episodes/hour with pixels, 52x the rig.** Rendering is 23%
 overhead. **Pixels survive as the observation** and masks stay a fidelity
 choice rather than a throughput necessity.
 
@@ -106,18 +123,14 @@ it is worth doing.
 
 ### Masks are not cheaper than pixels
 
-`render_with_segmentation` returns RGB, depth and segmentation together:
+`render_with_segmentation` returns RGB, depth and segmentation together, so it
+is dearer than RGB alone rather than cheaper — measured at 1x1 as 24% dearer,
+and being re-measured at a real resolution alongside the table above.
 
-| worlds | ms/call | frames/s | episode batch |
-|---|---|---|---|
-| 256 | 12.98 | 19,723 | 0.88 s |
-| 1024 | 13.31 | 76,951 | 0.90 s |
-
-24% dearer than RGB alone (0.90 s against 0.73 s at B=1024), not cheaper. So
-the plan's "try masks first, they are the cheap mitigation" is only half right:
-masks cost slightly MORE to produce. Their value is entirely in closing the
-appearance gap between our render and True Skate's, not in throughput — and
-that is now the only reason to choose them.
+Either way the plan's "try masks first, they are the cheap mitigation" is the
+wrong shape: masks cost MORE to produce, and their value is entirely in closing
+the appearance gap between our render and True Skate's. That is now the only
+reason to choose them.
 
 ## A correctness trap in the Warp backend: contacts are silently dropped
 
