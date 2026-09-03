@@ -117,7 +117,17 @@ def run(batch: int, save_frames: int = 4) -> dict:
     # Per-episode visibility, not one number over everything. A single
     # aggregate cannot tell "the renderer is broken" from "the board flew out
     # of frame", and those need completely different fixes.
-    visible = (rgb.std(axis=-1) > 0.02).any(axis=(2, 3))     # (frames, batch)
+    # Spatial variation, NOT variation across colour channels. The first
+    # version of this used `rgb.std(axis=-1) > 0.02`, which measures
+    # COLOURFULNESS -- and both the deck and the ground are near-neutral grey,
+    # so it read "nothing here" almost everywhere regardless of what was
+    # rendered. It returned bit-identical numbers across three different camera
+    # implementations, which is what gave it away.
+    grey = rgb.mean(axis=-1)                                  # (F, B, H, W)
+    bg = np.median(grey, axis=(2, 3), keepdims=True)
+    off_bg = np.abs(grey - bg) > 0.05
+    visible = off_bg.mean(axis=(2, 3)) > 0.005                # >0.5% of pixels
+    res_extra = {"mean_offbg_fraction": float(off_bg.mean())}
     disp = np.linalg.norm(np.asarray(out.pos)[-1, :, :2]
                           - np.asarray(out.pos)[0, :, :2], axis=-1)
     res = {"batch": batch, "compile_s": compile_s, "run_s": run_s,
@@ -130,7 +140,7 @@ def run(batch: int, save_frames: int = 4) -> dict:
            "median_displacement_m": float(np.median(disp)),
            "visible_and_settled": float(
                visible.all(axis=0)[disp < 2.0].mean() if (disp < 2.0).any() else -1.0),
-           "frac_settled": float((disp < 2.0).mean())}
+           "frac_settled": float((disp < 2.0).mean()), **res_extra}
     print(json.dumps(res, indent=2), flush=True)
     # A few frames come back so the render can actually be LOOKED at. Two
     # "findings" in this project were bugs that statistics hid.
@@ -144,7 +154,17 @@ def run(batch: int, save_frames: int = 4) -> dict:
     buf = io.BytesIO()
     np.savez_compressed(
         buf, frames=rgb[::max(1, frames // save_frames)][:save_frames, calm],
-        calm_displacement=disp[calm])
+        calm_displacement=disp[calm],
+        # The board's own trajectory for the episode shown, so "camera did not
+        # follow" can be told apart from "board left the frustum" on the host
+        # instead of by another GPU round trip.
+        moving_pos=np.asarray(out.pos)[:, int(np.argsort(disp)[len(disp) // 2])],
+        moving_quat=np.asarray(out.quat)[:, int(np.argsort(disp)[len(disp) // 2])],
+        calm_pos=np.asarray(out.pos)[:, calm],
+        # A moving episode too: a camera that fails to track is only visible
+        # in an episode where the board actually goes somewhere.
+        moving=rgb[::max(1, frames // save_frames)][:save_frames,
+                                                    int(np.argsort(disp)[len(disp) // 2])])
     res["sample_npz"] = buf.getvalue()
     return res
 

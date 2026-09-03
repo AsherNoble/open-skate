@@ -104,11 +104,30 @@ def make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots: int,
     batched_wrench = jax.vmap(wrench, in_axes=(0, 0, 0, 0, 0, 0, None))
     batched_step = jax.vmap(mjx.step, in_axes=(None, 0))
 
+    def camera_mocap(data, cam):
+        """Write the chase camera's pose into mocap, per world.
+
+        This must happen BEFORE `mjx.step`, not after. `cam_xpos`/`cam_xmat`
+        are computed by kinematics DURING the step, so a mocap pose written
+        afterwards is not seen until the next one -- and a render placed
+        between the two uses the previous step's camera. That is why writing
+        the camera after stepping changed the rendered frames not at all,
+        to the last decimal place.
+        """
+        pos, quat = jax.vmap(lambda c: (
+            g.camera_pose(c[0], c[1], params, xp=jnp)[0],
+            g.camera_quat(c[1], params.cam_pitch_deg, base_quat, xp=jnp),
+        ))(cam)
+        return data.replace(
+            mocap_pos=data.mocap_pos.at[:, mocap_id].set(pos),
+            mocap_quat=data.mocap_quat.at[:, mocap_id].set(quat))
+
     def substep(carry, t):
         data, fingers, cam, points, seg_t, t0 = carry
         xfrc, fingers, cam = batched_wrench(data, fingers, cam, points,
                                             seg_t, t0, t)
-        data = batched_step(mx, data.replace(xfrc_applied=xfrc))
+        data = camera_mocap(data.replace(xfrc_applied=xfrc), cam)
+        data = batched_step(mx, data)
         return (data, fingers, cam, points, seg_t, t0), None
 
     def frame(carry, t0_frame):
@@ -124,20 +143,10 @@ def make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots: int,
         data = carry[0]
         rgb = None
         if render is not None:
-            # Point the FITTED chase camera, per world, before rendering.
+            # The camera pose is already correct here: `substep` writes mocap
+            # before every `mjx.step`, so the kinematics that produced this
+            # state also placed the camera. Nothing to set.
             #
-            # Through MOCAP, not cam_xpos/cam_xmat: those are outputs,
-            # recomputed from the model whenever kinematics runs, so a camera
-            # written that way silently reverts to its MJCF pose. Measured
-            # before the fix: the board was in frame 0 of every episode and in
-            # the last frame of 3%, including episodes that never moved 2 m.
-            pos, quat = jax.vmap(lambda c: (
-                g.camera_pose(c[0], c[1], params, xp=jnp)[0],
-                g.camera_quat(c[1], params.cam_pitch_deg, base_quat, xp=jnp),
-            ))(carry[2])
-            data = data.replace(
-                mocap_pos=data.mocap_pos.at[:, mocap_id].set(pos),
-                mocap_quat=data.mocap_quat.at[:, mocap_id].set(quat))
             # Outside every vmap, by necessity: the render context owns Warp
             # buffers of a fixed nworld and cannot be traced through one.
             rgb, data = render(data)
