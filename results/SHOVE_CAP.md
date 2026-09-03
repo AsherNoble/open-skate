@@ -147,3 +147,24 @@ distinguish a hundredfold change is not evidence.
 `ground_shove_gain` set to **80.0**. Better supported than 118.82 — which was
 pinned at 99% of its fit bound — and still not a substitute for a capture
 designed to measure the push directly.
+
+
+## What the two changes bought, together
+
+Same 64 actions from the environment's own prior, at each configuration:
+
+| | 854 N, gain 118.82 | 100 N, gain 118.82 | 100 N, gain 80 |
+|---|---|---|---|
+| episodes that stayed physical | 33 / 64 | 51 / 64 | **53 / 64** |
+| board framed, among physical | 12–14% | 53% | **62%** |
+| median displacement, all | 22.8 m | 9.7 m | **8.8 m** |
+| median displacement, physical | 10.7 m | 7.4 m | **6.6 m** |
+
+Both changes were made on held-out evidence, and both moved the environment in
+the same direction. **It is still not finished**: 38% of physical episodes lose
+the board, and 6.6 m in 2.3 s is about 2.9 m/s — a brisk push, not a flick.
+
+What would settle it is a capture designed for the question: a few hundred
+ground-drag gestures with their outcomes, rather than the 113 that happen to
+fall out of a corpus collected for something else. The rig can do it — the
+phones are available and the tunnel daemon is healthy.
