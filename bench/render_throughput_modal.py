@@ -91,7 +91,9 @@ def bench(worlds: list[int], frames: int = 68, segmentation: bool = False) -> di
             # the Warp buffers and deregisters them when it is collected --
             # dropping it leaves render looking up a key that no longer exists
             # (KeyError on the buffer registry). Both have to stay alive.
-            rc = mjx.create_render_context(mjm, nworld=n)
+            rc = mjx.create_render_context(mjm, nworld=n,
+                                           **({"render_seg": True}
+                                              if segmentation else {}))
             ctx = rc.pytree() if hasattr(rc, "pytree") else rc
             # make_data must be told the Warp implementation too, or it hands
             # back a JAX Data the Warp model refuses. The batch axis comes from

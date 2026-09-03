@@ -60,3 +60,61 @@ episode a 1024-wide batch is ~70K frames per call. Rendering plausibly
 dominates physics and could erase the margin above; that measurement decides
 whether pixel observations are viable at scale, and it is the next thing to
 take.
+
+## Rendering (A10G, MJX Warp batch renderer) — it does not erase the margin
+
+128x64 RGB, the phone's 19.5:9 at a size a world model consumes. One `render`
+call produces one frame for every world at once; an episode needs 68 of them.
+
+| worlds | ms/call | frames/s | render a whole episode batch |
+|---|---|---|---|
+| 64 | 10.23 | 6,256 | 0.70 s |
+| 256 | 10.02 | 25,541 | 0.68 s |
+| 1024 | 10.73 | **95,463** | **0.73 s** |
+| 4096 | 19.71 | 207,799 | 1.34 s |
+
+**Per-call cost is nearly flat from 64 to 1024 worlds** — about 10 ms whatever
+the width — so frames/s scales almost linearly and the renderer is far from
+being the bottleneck it was expected to be.
+
+At the B=1024 operating point:
+
+| | seconds per 1024-episode batch |
+|---|---|
+| physics | 3.84 |
+| rendering, 68 frames | 0.73 |
+| **total** | **4.57** |
+
+**~806,000 episodes/hour with pixels, still 54x the rig.** Rendering is 19%
+overhead. **Pixels survive as the observation** and masks stay a fidelity
+choice rather than a throughput necessity.
+
+**Caveat, stated rather than buried:** this renders a static scene repeatedly.
+It does not include whatever BVH refit a moving board costs per step. The
+margin is wide enough that this is unlikely to change the answer, but it is not
+the same measurement as rendering a live rollout, and the honest version of
+this number comes from the batch-major rollout once that exists.
+
+### What blocks pixels now is structural, not throughput
+
+The render context **cannot be used under `vmap`** — its own docstring says
+nworld is hardcoded because Warp allocates arrays JAX cannot see. The physics
+rollout is env-major (`vmap` over independent episodes, each its own `scan`),
+so the pixel path needs a batch-major rewrite: one batched `Data`, stepped and
+rendered as a whole. That is the next piece of work, and the numbers above say
+it is worth doing.
+
+### Masks are not cheaper than pixels
+
+`render_with_segmentation` returns RGB, depth and segmentation together:
+
+| worlds | ms/call | frames/s | episode batch |
+|---|---|---|---|
+| 256 | 12.98 | 19,723 | 0.88 s |
+| 1024 | 13.31 | 76,951 | 0.90 s |
+
+24% dearer than RGB alone (0.90 s against 0.73 s at B=1024), not cheaper. So
+the plan's "try masks first, they are the cheap mitigation" is only half right:
+masks cost slightly MORE to produce. Their value is entirely in closing the
+appearance gap between our render and True Skate's, not in throughput — and
+that is now the only reason to choose them.

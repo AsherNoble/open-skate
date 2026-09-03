@@ -1,0 +1,24 @@
+{
+  "resolution": [
+    128,
+    64
+  ],
+  "results": [
+    {
+      "worlds": 256,
+      "compile_s": 3.773463018000001,
+      "s_per_call": 0.012979768699999995,
+      "frames_per_s": 19723.00168954475,
+      "batch_render_s": 0.8826242715999997,
+      "segmentation": true
+    },
+    {
+      "worlds": 1024,
+      "compile_s": 0.2839436169999985,
+      "s_per_call": 0.013307195399999827,
+      "frames_per_s": 76950.85021446468,
+      "batch_render_s": 0.9048892871999882,
+      "segmentation": true
+    }
+  ]
+}
