@@ -6,15 +6,11 @@
   "results": [
     {
       "worlds": 64,
-      "error": "NotImplementedError: render only implemented for MuJoCo Warp."
-    },
-    {
-      "worlds": 256,
-      "error": "NotImplementedError: render only implemented for MuJoCo Warp."
-    },
-    {
-      "worlds": 1024,
-      "error": "NotImplementedError: render only implemented for MuJoCo Warp."
+      "compile_s": 2.757245643000001,
+      "s_per_call": 0.010357400100000014,
+      "frames_per_s": 6179.156871616837,
+      "batch_render_s": 0.704303206800001,
+      "segmentation": false
     }
   ]
 }

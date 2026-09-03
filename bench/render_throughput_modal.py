@@ -37,7 +37,12 @@ app = modal.App("open-skate-render-throughput")
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("libegl1", "libgl1", "libglx-mesa0", "libosmesa6")
+    # `mujoco-mjx[warp]` installs warp-lang only, and mjx.render then raises
+    # "render only implemented for MuJoCo Warp". The Warp BACKEND is a separate
+    # package that is not on PyPI, so it comes from source.
     .pip_install("jax[cuda12]", "mujoco", "mujoco-mjx[warp]", "numpy")
+    .apt_install("git")
+    .pip_install("git+https://github.com/google-deepmind/mujoco_warp.git")
     .env({"PYTHONPATH": "/root/src"})
     .add_local_dir(str(_ROOT / "opensk"), remote_path="/root/src/opensk")
 )
@@ -64,13 +69,35 @@ def bench(worlds: list[int], frames: int = 68, segmentation: bool = False) -> di
     p = SkateParams()
     mjm = mujoco.MjModel.from_xml_string(build_scene(p, FLAT_PARK))
     mjm.vis.global_.offheight, mjm.vis.global_.offwidth = RENDER_H, RENDER_W
-    mx = mjx.put_model(mjm)
+    import inspect
+    print("put_model", inspect.signature(mjx.put_model), flush=True)
+    print("make_data", inspect.signature(mjx.make_data), flush=True)
+    try:
+        import mujoco_warp
+        print("mujoco_warp OK", getattr(mujoco_warp, "__version__", "?"), flush=True)
+    except Exception as exc:
+        print("mujoco_warp MISSING", exc, flush=True)
+    # The Warp backend is what carries the batch renderer; the default JAX
+    # implementation raises NotImplementedError from mjx.render.
+    mx = None   # built per world count: the Warp model carries its batch size
 
     results = []
     for n in worlds:
         try:
-            ctx = mjx.create_render_context(mjm, nworld=n)
-            d = jax.vmap(lambda _: mjx.make_data(mx))(jnp.arange(n))
+            # batch_sizes is for batched MODEL fields (per-world geometry),
+            # not for nworld -- passing nworld there is rejected outright.
+            mx = mjx.put_model(mjm, impl="warp")
+            # `render` takes the JAX-compatible handle, but the CONTEXT owns
+            # the Warp buffers and deregisters them when it is collected --
+            # dropping it leaves render looking up a key that no longer exists
+            # (KeyError on the buffer registry). Both have to stay alive.
+            rc = mjx.create_render_context(mjm, nworld=n)
+            ctx = rc.pytree() if hasattr(rc, "pytree") else rc
+            # make_data must be told the Warp implementation too, or it hands
+            # back a JAX Data the Warp model refuses. The batch axis comes from
+            # vmapping make_data; render itself then consumes the batched Data
+            # whole, which is the constraint that forces batch-major rollouts.
+            d = jax.vmap(lambda _: mjx.make_data(mjm, impl="warp"))(jnp.arange(n))
 
             fn = mjx.render_with_segmentation if segmentation else mjx.render
 
@@ -102,7 +129,9 @@ def bench(worlds: list[int], frames: int = 68, segmentation: bool = False) -> di
                   f"episode batch {row['batch_render_s']:8.2f}s", flush=True)
             results.append(row)
         except Exception as exc:
+            import traceback
             print(f"worlds {n}: {type(exc).__name__}: {exc}", flush=True)
+            traceback.print_exc()
             results.append({"worlds": n, "error": f"{type(exc).__name__}: {exc}"})
     return {"resolution": [RENDER_H, RENDER_W], "results": results}
 
