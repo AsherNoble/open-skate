@@ -36,6 +36,24 @@ class Episodes(NamedTuple):
     peak_height: np.ndarray    # (B,) metres above the resting ride height
     air_s: np.ndarray          # (B,) time clear of the ground
     displacement: np.ndarray   # (B,) furthest travelled, in plan
+    valid: np.ndarray          # (B,) bool: the episode stayed physical
+
+
+# An episode past these bounds did not happen: a finger on a 0.9 kg deck cannot
+# put the board 3 m up or 40 m away inside 2.3 s.
+#
+# It has to be checked because the model ALLOWS it. The deck force saturates at
+# `touch_force_max` -- a finger pulls only as hard as a finger can -- but the
+# ground shove has no such cap: `thrust = ground_shove_gain * travel / dt`, so
+# a fast full-screen drag asks for kilonewtons and MuJoCo's solver goes
+# unstable. This is the REFERENCE model's behaviour, not a port artefact: the
+# same actions blow up on CPU, where MuJoCo prints "Nan, Inf or huge value in
+# QACC". Capping the shove the way the deck force is capped is the obvious fix
+# and is a change to the fitted physics, so it belongs with the fidelity work
+# rather than here. Until then the environment reports which episodes are real
+# instead of quietly handing a trainer a NaN.
+MAX_PLAUSIBLE_HEIGHT_M = 3.0
+MAX_PLAUSIBLE_TRAVEL_M = 40.0
 
 
 def _quat_mul(a, b, xp):
@@ -144,7 +162,10 @@ class GestureEnv:
                         points, seg_t, t0, n_steps, n_slots)
             roll, yaw, peak, air, disp = summarise(
                 r.pos, r.quat, p.timestep, self.rest_z, jnp)
-            return (r.pos[frames], r.quat[frames], roll, yaw, peak, air, disp)
+            valid = (jnp.isfinite(peak) & jnp.isfinite(disp) & jnp.isfinite(roll)
+                     & (peak < MAX_PLAUSIBLE_HEIGHT_M)
+                     & (disp < MAX_PLAUSIBLE_TRAVEL_M))
+            return (r.pos[frames], r.quat[frames], roll, yaw, peak, air, disp, valid)
 
         return jax.jit(jax.vmap(one))
 
@@ -162,9 +183,10 @@ class GestureEnv:
         a = jnp.asarray(np.asarray(actions, dtype=float))
         if a.ndim == 1:
             a = a[None, :]
-        pos, quat, roll, yaw, peak, air, disp = self._one(a)
+        pos, quat, roll, yaw, peak, air, disp, valid = self._one(a)
         return Episodes(pos=pos, quat=quat, roll_deg=roll, yaw_deg=yaw,
-                        peak_height=peak, air_s=air, displacement=disp)
+                        peak_height=peak, air_s=air, displacement=disp,
+                        valid=valid)
 
     def sample_actions(self, batch: int, seed: int = 0) -> np.ndarray:
         """A batch of actions from the prior the squashing implies.
