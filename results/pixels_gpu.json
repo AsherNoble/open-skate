@@ -1,8 +1,8 @@
 {
   "batch": 64,
-  "compile_s": 9.172161419000005,
-  "run_s": 0.5556053810000066,
-  "episodes_per_hour": 414682.808840538,
+  "compile_s": 10.381373932000002,
+  "run_s": 0.5592437050000001,
+  "episodes_per_hour": 411984.9681633877,
   "frames": 68,
   "rgb_shape": [
     68,
@@ -11,12 +11,12 @@
     64,
     3
   ],
-  "mean_pixel": 0.8284904360771179,
+  "mean_pixel": 0.8284903168678284,
   "board_visible_first_frame": 1.0,
   "board_visible_last_frame": 0.515625,
   "board_visible_all_frames": 0.484375,
-  "median_displacement_m": 1.7660551071166992,
+  "median_displacement_m": 1.7660552263259888,
   "visible_and_settled": 0.35294117647058826,
   "frac_settled": 0.53125,
-  "mean_offbg_fraction": 0.02966886408188764
+  "mean_offbg_fraction": 0.02966748966890223
 }

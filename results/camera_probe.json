@@ -1,0 +1,28 @@
+{
+  "ncam": 1,
+  "nmocap": 1,
+  "cam_id": 0,
+  "cam_bodyid": 1,
+  "cam_mocapid_of_body": 0,
+  "jax": {
+    "mocap_set_to": [
+      1.5,
+      -0.7,
+      0.9
+    ],
+    "cam_xpos_before_step": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "cam_xpos_after_step": [
+      1.5,
+      -0.699999988079071,
+      0.8999999761581421
+    ],
+    "follows_mocap": true
+  },
+  "warp": {
+    "error": "AssertionError: Leaf node ndim (2) and expected ndim (1) do not match for path (GetAttrKey(name='_impl'), GetAttrKey(name='cdof_tri_col'))."
+  }
+}

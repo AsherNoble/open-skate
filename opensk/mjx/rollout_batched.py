@@ -40,6 +40,7 @@ class BatchRollout(NamedTuple):
     pos: np.ndarray     # (F, B, 3) sampled at frame times
     quat: np.ndarray    # (F, B, 4)
     rgb: np.ndarray | None    # (F, B, H, W, 3) when rendering, else None
+    cam_pos: np.ndarray | None  # (F, B, 3) camera actually used for the render
 
 
 def frames_and_substeps(params, seconds: float = EPISODE_SECONDS,
@@ -154,7 +155,11 @@ def make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots: int,
         out = (data.qpos[:, :3], data.qpos[:, 3:7])
         ts = t0_frame + jnp.arange(1, substeps, dtype=float) * dt
         carry, _ = jax.lax.scan(substep, carry, ts)
-        return carry, out if rgb is None else out + (rgb,)
+        # The camera pose the renderer actually saw, read back rather than
+        # assumed. Whether a mocap write reaches the render is exactly the
+        # thing that cannot be settled by reading the plumbing.
+        return carry, (out if rgb is None
+                       else out + (rgb, data.cam_xpos[:, cam_id]))
 
     return frame
 
@@ -186,4 +191,5 @@ def rollout_batched(mx, model, params, deck_bid, deck_gids, init_data,
     _, out = jax.lax.scan(frame, (init_data, fingers, cam, points, seg_t, t0),
                           frame_starts)
     return BatchRollout(pos=out[0], quat=out[1],
-                        rgb=out[2] if len(out) > 2 else None)
+                        rgb=out[2] if len(out) > 2 else None,
+                        cam_pos=out[3] if len(out) > 3 else None)

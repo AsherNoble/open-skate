@@ -87,6 +87,14 @@ def run(batch: int, save_frames: int = 4) -> dict:
     ctx = rc.pytree()
 
     def render(d):
+        # REFIT THE BVH FIRST. `mjx.render` does not do it, and without it the
+        # renderer keeps every geom at the pose it had when the context was
+        # built -- so a board that moves simply vanishes from the frame while
+        # a board that stays put renders perfectly. That is exactly what was
+        # measured: off-background fraction 6.98% at frame 0 and precisely
+        # 0.0000 afterwards, with the camera provably tracking and the board
+        # provably inside the frustum.
+        d = mjx.refit_bvh(mx, d, ctx)
         rgb, _, d = mjx.render(mx, d, ctx)
         return mjx.get_rgb(ctx, cam_id, rgb), d
 
@@ -161,6 +169,7 @@ def run(batch: int, save_frames: int = 4) -> dict:
         moving_pos=np.asarray(out.pos)[:, int(np.argsort(disp)[len(disp) // 2])],
         moving_quat=np.asarray(out.quat)[:, int(np.argsort(disp)[len(disp) // 2])],
         calm_pos=np.asarray(out.pos)[:, calm],
+        moving_cam=np.asarray(out.cam_pos)[:, int(np.argsort(disp)[len(disp) // 2])],
         # A moving episode too: a camera that fails to track is only visible
         # in an episode where the board actually goes somewhere.
         moving=rgb[::max(1, frames // save_frames)][:save_frames,
