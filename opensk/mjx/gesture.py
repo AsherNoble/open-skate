@@ -145,3 +145,22 @@ def board_yaw(quat, xp=np):
     """Heading of the deck's long axis, from a wxyz quaternion."""
     w, x, y, z = quat[0], quat[1], quat[2], quat[3]
     return xp.arctan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
+
+
+def camera_pose(target, yaw, params, xp=np):
+    """(position, 3x3 rotation) for MuJoCo's camera, from the chase state.
+
+    MuJoCo cameras look down their own **-z** axis, with +x right and +y up, so
+    the rotation's columns are (right, up, -forward). Getting that sign wrong
+    renders the scene from behind the camera, which shows up as an empty frame
+    rather than an error.
+
+    This is what makes rendered frames the GAME's frames: the same fitted
+    `FollowCamera` that decides where a screen touch lands also decides what
+    the pixels show. A renderer with its own camera would produce images the
+    touch model does not agree with.
+    """
+    right, up, forward = camera_basis(yaw, params.cam_pitch_deg, xp=xp)
+    position = target - params.cam_distance * forward
+    mat = xp.stack([right, up, -forward], axis=-1)
+    return position, mat

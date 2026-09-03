@@ -65,7 +65,7 @@ def initial_batch(mx, d0, batch: int):
 
 
 def make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots: int,
-                  substeps: int, render=None):
+                  substeps: int, render=None, cam_id: int = 0):
     """Build the per-FRAME function: `substeps` of physics, then one render."""
     import jax
     import jax.numpy as jnp
@@ -122,6 +122,16 @@ def make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots: int,
         data = carry[0]
         rgb = None
         if render is not None:
+            # Point the model's camera where the FITTED chase camera is looking,
+            # per world, before rendering. Without this the frames come from
+            # wherever the MJCF happened to put the camera, and the pixels stop
+            # being the pixels the touch model agrees with.
+            pos, mat = jax.vmap(lambda c: g.camera_pose(c[0], c[1], params,
+                                                        xp=jnp))(carry[2])
+            data = data.replace(
+                cam_xpos=data.cam_xpos.at[:, cam_id].set(pos),
+                cam_xmat=data.cam_xmat.at[:, cam_id].set(
+                    mat.reshape(mat.shape[0], *data.cam_xmat.shape[2:])))
             # Outside every vmap, by necessity: the render context owns Warp
             # buffers of a fixed nworld and cannot be traced through one.
             rgb, data = render(data)
@@ -136,6 +146,7 @@ def make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots: int,
 
 def rollout_batched(mx, model, params, deck_bid, deck_gids, init_data,
                     points, seg_t, t0, *, n_slots: int = 2, render=None,
+                    cam_id: int = 0,
                     seconds: float = EPISODE_SECONDS) -> BatchRollout:
     """Run a whole batch of episodes together. `init_data` carries the batch axis.
 
@@ -148,7 +159,7 @@ def rollout_batched(mx, model, params, deck_bid, deck_gids, init_data,
     n_frames, substeps = frames_and_substeps(params, seconds)
     batch = points.shape[0]
     frame = make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots,
-                          substeps, render)
+                          substeps, render, cam_id)
 
     fingers = tuple(jax.tree.map(lambda x: jnp.broadcast_to(x, (batch,) + x.shape),
                                  initial_finger(xp=jnp)) for _ in range(n_slots))
