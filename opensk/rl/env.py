@@ -23,6 +23,7 @@ import numpy as np
 
 from ..mjx import gesture as g
 from ..mjx.rollout import EPISODE_SECONDS, episode_length, frame_indices, rollout
+from ..mjx.rollout_batched import frames_and_substeps as _frames_and_substeps
 from ..sim.params import SkateParams
 from .action import action_dim, decode
 
@@ -37,6 +38,7 @@ class Episodes(NamedTuple):
     air_s: np.ndarray          # (B,) time clear of the ground
     displacement: np.ndarray   # (B,) furthest travelled, in plan
     valid: np.ndarray          # (B,) bool: the episode stayed physical
+    rgb: np.ndarray | None = None   # (B, F, H, W, 3) when rendering
 
 
 # An episode past these bounds did not happen: a finger on a 0.9 kg deck cannot
@@ -116,7 +118,20 @@ class GestureEnv:
     """
 
     def __init__(self, params: SkateParams | None = None, *, n_slots: int = 2,
-                 seconds: float = EPISODE_SECONDS, settle_steps: int = 200):
+                 seconds: float = EPISODE_SECONDS, settle_steps: int = 200,
+                 pixels: bool = False, batch: int | None = None):
+        """`pixels=True` renders frames, and needs `batch` fixed up front.
+
+        Rendering forces a different nesting. The pose-only path is env-major
+        -- `vmap` over independent episodes, each its own `scan` -- which is
+        the fastest shape and what gesture search wants. MJX's render context
+        hardcodes `nworld` and cannot be traced through a `vmap`, so pixels
+        route through the batch-major rollout instead, and the batch size
+        becomes part of the environment rather than of the call.
+
+        Pose-only is roughly 4x cheaper. Ask for pixels only when a world model
+        is actually going to consume them.
+        """
         import jax
         import jax.numpy as jnp
         from mujoco import mjx
@@ -136,6 +151,12 @@ class GestureEnv:
         self._mx, self._d0, self._cpu = mx, d0, cpu
         self.rest_z = float(np.asarray(d0.qpos)[2])
         self._one = None
+        self.pixels = pixels
+        self.batch = batch
+        if pixels and not batch:
+            raise ValueError(
+                "pixels=True needs an explicit batch: the render context "
+                "allocates for a fixed nworld and cannot be resized per call.")
 
     # -- the batched call --------------------------------------------------
 
@@ -171,6 +192,71 @@ class GestureEnv:
 
         return jax.jit(jax.vmap(one))
 
+    def _build_pixel(self):
+        """Batch-major variant: one wide `Data`, rendered outside every vmap."""
+        import jax
+        import jax.numpy as jnp
+        import mujoco
+        from mujoco import mjx
+
+        from ..mjx.rollout_batched import rollout_batched
+        from ..sim.model.build import FLAT_PARK, build_scene
+
+        p, n_slots, batch = self.params, self.n_slots, self.batch
+        mjm = mujoco.MjModel.from_xml_string(build_scene(p, FLAT_PARK))
+        cam_id = mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_CAMERA, "chase")
+        # The Warp backend preallocates contact buffers and DISCARDS contacts
+        # past them, printing a warning and carrying on -- a board partly not
+        # touching the ground, invisible to every summary statistic.
+        mx = mjx.put_model(mjm, impl="warp")
+        d0 = jax.vmap(lambda _: mjx.make_data(
+            mjm, impl="warp", naconmax=64 * batch, njmax=64 * batch))(
+                jnp.arange(batch))
+        d0 = d0.replace(qpos=jnp.broadcast_to(jnp.array(self._cpu.data.qpos),
+                                              (batch, self._cpu.model.nq)))
+        step = jax.jit(jax.vmap(mjx.step, in_axes=(None, 0)))
+        for _ in range(200):
+            d0 = step(mx, d0)
+
+        # The context owns Warp buffers and deregisters them when collected,
+        # so it must outlive every use of its pytree handle.
+        self._rc = mjx.create_render_context(mjm, nworld=batch)
+        ctx = self._rc.pytree()
+
+        def render(d):
+            # refit_bvh is mandatory: without it the renderer keeps every geom
+            # at the pose it had when the context was built, and a board that
+            # moves vanishes from frame.
+            d = mjx.refit_bvh(mx, d, ctx)
+            rgb, _, d = mjx.render(mx, d, ctx)
+            return mjx.get_rgb(ctx, cam_id, rgb), d
+
+        deck_gids = sorted(self._cpu._deck_gids)
+
+        def go(vecs, d):
+            points, durations, easings, delays = jax.vmap(
+                lambda v: decode(v, n_slots, xp=jnp))(vecs)
+
+            def sched(pts, dur, eas, dly):
+                segs, starts, t = [], [], 0.0
+                for i in range(n_slots):
+                    _, seg_t, d_i = g.schedule(pts[i], dur[i], eas[i], xp=jnp)
+                    segs.append(seg_t)
+                    starts.append(t)
+                    if i < n_slots - 1:
+                        t = t + d_i + dly[i]
+                return jnp.stack(segs), jnp.stack(
+                    [jnp.asarray(x, dtype=float) for x in starts])
+
+            seg_t, t0 = jax.vmap(sched)(points, durations, easings, delays)
+            return rollout_batched(mx, self._cpu.model, p, self._cpu.deck_bid,
+                                   deck_gids, d, points, seg_t, t0,
+                                   n_slots=n_slots, render=render,
+                                   cam_id=cam_id)
+
+        self._d0_pixel = d0
+        return jax.jit(go)
+
     def step(self, actions) -> Episodes:
         """(B, action_dim) unbounded reals -> a batch of rollouts.
 
@@ -181,14 +267,41 @@ class GestureEnv:
         import jax.numpy as jnp
 
         if self._one is None:
-            self._one = self._build()
+            self._one = self._build_pixel() if self.pixels else self._build()
         a = jnp.asarray(np.asarray(actions, dtype=float))
         if a.ndim == 1:
             a = a[None, :]
+        if self.pixels:
+            return self._step_pixels(a)
         pos, quat, roll, yaw, peak, air, disp, valid = self._one(a)
         return Episodes(pos=pos, quat=quat, roll_deg=roll, yaw_deg=yaw,
                         peak_height=peak, air_s=air, displacement=disp,
                         valid=valid)
+
+    def _step_pixels(self, a):
+        """Batch-major step. Outcomes are derived on the host from the frames'
+        pose trajectory, so the pixel and pose paths report the same fields."""
+        import jax.numpy as jnp
+
+        if a.shape[0] != self.batch:
+            raise ValueError(
+                f"pixels environment is built for batch {self.batch}, "
+                f"got {a.shape[0]} actions; rebuild it for the new size.")
+        r = self._one(a, self._d0_pixel)
+        pos = np.asarray(r.pos).transpose(1, 0, 2)      # (B, F, 3)
+        quat = np.asarray(r.quat).transpose(1, 0, 2)
+        _, substeps = _frames_and_substeps(self.params)
+        dt_frame = self.params.timestep * substeps
+        rows = [summarise(pos[i], quat[i], dt_frame, self.rest_z, np)
+                for i in range(len(pos))]
+        roll, yaw, peak, air, disp = (np.array(x) for x in zip(*rows))
+        valid = (np.isfinite(peak) & np.isfinite(disp) & np.isfinite(roll)
+                 & (peak < MAX_PLAUSIBLE_HEIGHT_M)
+                 & (disp < MAX_PLAUSIBLE_TRAVEL_M))
+        return Episodes(pos=pos, quat=quat, roll_deg=roll, yaw_deg=yaw,
+                        peak_height=peak, air_s=air, displacement=disp,
+                        valid=valid,
+                        rgb=np.asarray(r.rgb).transpose(1, 0, 2, 3, 4))
 
     def sample_actions(self, batch: int, seed: int = 0) -> np.ndarray:
         """A batch of actions from the prior the squashing implies.

@@ -9,10 +9,11 @@ Stored as compressed `.npz` shards rather than one growing file: a 1024-wide
 batch is the natural write unit (it is what the GPU produces in one call), and
 shards can be written from several workers and read in any order.
 
-Deliberately NOT storing pixels yet. Whether observations are RGB frames or
-segmentation masks is still open -- it turns on the renderer throughput
-measurement -- so this stores pose trajectories and actions, which both
-observation choices are derived from and neither makes obsolete.
+Frames are stored as **uint8**, not float32: 4x smaller, and the renderer's
+output is quantised to 8 bits per channel anyway, so the conversion is exact
+rather than lossy. A 1024-episode shard of 68 frames at 128x64x3 is 1.7 GB in
+float32 and 428 MB in uint8, which is the difference between a pipeline that
+streams and one that does not.
 """
 from __future__ import annotations
 
@@ -39,6 +40,7 @@ class Shard:
     displacement: np.ndarray  # (B,)
     valid: np.ndarray         # (B,) bool
     source: str               # "sim" or "device"
+    rgb: np.ndarray | None = None   # (B, F, H, W, 3) uint8, when rendered
 
     def __len__(self) -> int:
         return len(self.actions)
@@ -51,9 +53,15 @@ class Shard:
         from stored data.
         """
         k = np.asarray(self.valid, dtype=bool)
-        return Shard(*[np.asarray(getattr(self, f.name))[k] for f in
-                       self.__dataclass_fields__.values()
-                       if f.name != "source"], source=self.source)
+        return Shard(*[np.asarray(getattr(self, n))[k] for n in _ARRAYS],
+                     source=self.source,
+                     rgb=None if self.rgb is None else np.asarray(self.rgb)[k])
+
+    def frames_float(self) -> np.ndarray:
+        """Frames back as float32 in [0, 1], the form a model consumes."""
+        if self.rgb is None:
+            raise ValueError("this shard carries no frames")
+        return np.asarray(self.rgb, dtype=np.float32) / 255.0
 
 
 _ARRAYS = ("actions", "pos", "quat", "roll_deg", "yaw_deg", "peak_height",
@@ -68,6 +76,12 @@ def save(path, actions, episodes, source: str = "sim") -> pathlib.Path:
     for name in _ARRAYS[1:]:
         v = np.asarray(getattr(episodes, name))
         data[name] = v.astype(bool if name == "valid" else np.float32)
+    rgb = getattr(episodes, "rgb", None)
+    if rgb is not None:
+        # The renderer emits float in [0, 1] that was quantised to 8 bits on
+        # the way out, so rounding back to uint8 loses nothing and saves 4x.
+        data["rgb"] = np.clip(np.asarray(rgb) * 255.0 + 0.5, 0, 255
+                              ).astype(np.uint8)
     data["meta"] = np.frombuffer(
         json.dumps({"version": FORMAT_VERSION, "source": source}).encode(),
         dtype=np.uint8)
@@ -82,7 +96,8 @@ def load(path) -> Shard:
             raise ValueError(
                 f"{path}: format version {meta['version']}, expected "
                 f"{FORMAT_VERSION}. Refusing to guess at the layout.")
-        return Shard(*[z[n] for n in _ARRAYS], source=meta["source"])
+        return Shard(*[z[n] for n in _ARRAYS], source=meta["source"],
+                     rgb=z["rgb"] if "rgb" in z.files else None)
 
 
 def iter_shards(directory):
