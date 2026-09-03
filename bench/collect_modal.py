@@ -113,7 +113,12 @@ def collect(batch: int) -> dict:
         buf, frames=rgb[pick, ::max(1, rgb.shape[1] // 6)][:6],
         pos=np.asarray(ep.pos)[pick], quat=np.asarray(ep.quat)[pick],
         displacement=np.asarray(ep.displacement)[pick],
-        peak=np.asarray(ep.peak_height)[pick])
+        peak=np.asarray(ep.peak_height)[pick],
+        # Every episode's trajectory, so camera questions ("would a different
+        # follow lag keep the board framed?") can be answered on the host
+        # instead of by another GPU round trip. 64 x 68 x 7 floats is nothing.
+        all_pos=np.asarray(ep.pos), all_quat=np.asarray(ep.quat),
+        all_valid=np.asarray(ep.valid), all_visible=visible.all(axis=1))
     res["sample_npz"] = buf.getvalue()
     return res
 
