@@ -29,7 +29,9 @@ from . import gesture as g
 from .geom import cast_deck_or_ground
 
 # Finger contact state, as small integers so the pytree stays numeric.
-KIND_NONE, KIND_DECK, KIND_GROUND = 0, 1, 2
+# MISSED is a real state, not a variant of GROUND: the reference model makes a
+# finger that hit nothing permanently inert, and it must stay that way here.
+KIND_NONE, KIND_DECK, KIND_GROUND, KIND_MISSED = 0, 1, 2, 3
 
 
 class FingerState(NamedTuple):
@@ -58,28 +60,28 @@ def deck_boxes_world(model, data, deck_gids, xp=np):
             for i in deck_gids]
 
 
-def _point_at_depth(nx, ny, depth, board_pos, yaw, params, xp=np):
+def _point_at_depth(nx, ny, depth, cam_target, cam_yaw, params, xp=np):
     """Where a screen point sits on the view-parallel plane at `depth`.
 
     This is what makes dragging feel like dragging: the fingertip stays at the
     depth of whatever it grabbed, so lateral screen motion becomes lateral
     world motion instead of motion toward the camera.
     """
-    origin, d = g.camera_ray(nx, ny, board_pos, yaw, params, xp=xp)
-    _, _, forward = g.camera_basis(yaw, params.cam_pitch_deg, xp=xp)
+    origin, d = g.camera_ray_at(nx, ny, cam_target, cam_yaw, params, xp=xp)
+    _, _, forward = g.camera_basis(cam_yaw, params.cam_pitch_deg, xp=xp)
     denom = xp.dot(d, forward)
     safe = xp.where(xp.abs(denom) < 1e-9, 1e-9, denom)
     return origin + d * (depth / safe)
 
 
-def _depth_of(point, board_pos, yaw, params, xp=np):
-    origin, _ = g.camera_ray(0.5, 0.5, board_pos, yaw, params, xp=xp)
-    _, _, forward = g.camera_basis(yaw, params.cam_pitch_deg, xp=xp)
+def _depth_of(point, cam_target, cam_yaw, params, xp=np):
+    origin, _ = g.camera_ray_at(0.5, 0.5, cam_target, cam_yaw, params, xp=xp)
+    _, _, forward = g.camera_basis(cam_yaw, params.cam_pitch_deg, xp=xp)
     return xp.dot(point - origin, forward)
 
 
 def finger_force(state: FingerState, nx, ny, model, data, deck_bid, deck_gids,
-                 params, dt, xp=np):
+                 params, dt, cam_target=None, cam_yaw=None, xp=np):
     """One substep for one finger -> (force, point, torque_extra, new state).
 
     Branchless: every case is computed and selected with `where`, because a
@@ -91,10 +93,18 @@ def finger_force(state: FingerState, nx, ny, model, data, deck_bid, deck_gids,
     # no-op on the former and the fix for the latter, so the same code drives
     # both and the parity test can compare them directly.
     R = data.xmat[deck_bid].reshape(3, 3)
-    yaw = g.board_yaw(_quat_from_mat(R, xp=xp), xp=xp)
-    origin, ray_d = g.camera_ray(nx, ny, board_pos, yaw, params, xp=xp)
+    # The deck is the root free body, so its orientation IS qpos[3:7]. Taking
+    # it from there rather than converting the rotation matrix back avoids the
+    # trace form's singularity at a half turn, where w -> 0 and the axis
+    # components blow up -- a flipping board reaches exactly that pose.
+    yaw = g.board_yaw(data.qpos[3:7], xp=xp)
+    # The camera lags the board, so rays come from the CARRIED camera state.
+    # Falling back to an unlagged camera keeps single-step parity checks simple.
+    if cam_target is None:
+        cam_target, cam_yaw = g.camera_reset(board_pos, yaw, params, xp=xp)
+    origin, ray_d = g.camera_ray_at(nx, ny, cam_target, cam_yaw, params, xp=xp)
     boxes = deck_boxes_world(model, data, deck_gids, xp=xp)
-    hit_deck, t_hit = cast_deck_or_ground(origin, ray_d, boxes, xp=xp)
+    hit_deck, t_hit, missed = cast_deck_or_ground(origin, ray_d, boxes, xp=xp)
     hit_point = origin + ray_d * t_hit
 
     # --- acquisition: at touch-down, and again for a ground finger that has
@@ -102,8 +112,9 @@ def finger_force(state: FingerState, nx, ny, model, data, deck_bid, deck_gids,
     acquiring = (state.kind == KIND_NONE) | \
                 ((state.kind == KIND_GROUND) & hit_deck)
     new_local = R.T @ (hit_point - board_pos)
-    new_depth = _depth_of(hit_point, board_pos, yaw, params, xp=xp)
-    kind_after_acq = xp.where(hit_deck, KIND_DECK, KIND_GROUND)
+    new_depth = _depth_of(hit_point, cam_target, cam_yaw, params, xp=xp)
+    kind_after_acq = xp.where(missed, KIND_MISSED,
+                              xp.where(hit_deck, KIND_DECK, KIND_GROUND))
 
     kind = xp.where(acquiring, kind_after_acq, state.kind)
     local = xp.where(acquiring, new_local, state.local)
@@ -111,8 +122,9 @@ def finger_force(state: FingerState, nx, ny, model, data, deck_bid, deck_gids,
 
     # --- deck contact: stick or slip by a Coulomb limit ---------------------
     contact = board_pos + R @ local
-    tip = _point_at_depth(nx, ny, _depth_of(contact, board_pos, yaw, params, xp=xp),
-                          board_pos, yaw, params, xp=xp)
+    tip = _point_at_depth(nx, ny,
+                          _depth_of(contact, cam_target, cam_yaw, params, xp=xp),
+                          cam_target, cam_yaw, params, xp=xp)
     pull = tip - contact
     normal = R[:, 2]
     f_n = xp.dot(pull, normal)
@@ -127,6 +139,9 @@ def finger_force(state: FingerState, nx, ny, model, data, deck_bid, deck_gids,
     local = xp.where(slipping & (kind == KIND_DECK), slid, local)
 
     contact = board_pos + R @ local
+    tip = _point_at_depth(nx, ny,
+                          _depth_of(contact, cam_target, cam_yaw, params, xp=xp),
+                          cam_target, cam_yaw, params, xp=xp)
     err = tip - contact
     r = contact - data.xipos[deck_bid]
     # Free-joint velocities, not cvel: the CPU model uses qvel[0:3] linear and
@@ -149,6 +164,8 @@ def finger_force(state: FingerState, nx, ny, model, data, deck_bid, deck_gids,
     on_deck = (kind == KIND_DECK)
     out_force = xp.where(on_deck, force, shove)
     out_point = xp.where(on_deck, contact, data.xipos[deck_bid])
+    # A finger that hit nothing does nothing, for as long as it lives.
+    out_force = xp.where(kind == KIND_MISSED, xp.zeros(3), out_force)
 
     return out_force, out_point, FingerState(
         kind=kind, local=local, depth=depth, prev_screen=xp.stack([nx, ny]))

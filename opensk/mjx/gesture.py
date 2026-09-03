@@ -95,10 +95,32 @@ def camera_target(board_pos, yaw, lead_m, xp=np):
                                  xp.zeros_like(yaw)])
 
 
-def camera_ray(nx, ny, board_pos, yaw, params, xp=np):
-    """Normalised screen point -> (origin, unit direction) world ray."""
+def camera_reset(board_pos, board_yaw_, params, xp=np):
+    """Initial (target, yaw) camera state: aimed straight at the board."""
+    return camera_target(board_pos, board_yaw_, params.cam_lead_m, xp=xp), board_yaw_
+
+
+def camera_update(target, yaw, board_pos, board_yaw_, params, dt, xp=np):
+    """One substep of the chase camera's first-order lag -> (target, yaw).
+
+    THE LAG IS PHYSICS, NOT PRESENTATION. During a trick the board rotates far
+    faster than the camera follows, so the lag changes where a mid-gesture
+    screen point projects and therefore changes the force the finger applies.
+    `cam_follow_tau` is a fitted parameter for exactly that reason. An
+    unlagged port silently simulates a different game.
+    """
+    tau = params.cam_follow_tau
+    a = 1.0 if tau <= 1e-6 else 1.0 - np.exp(-dt / tau)   # both plain floats
+    target = target + a * (camera_target(board_pos, board_yaw_,
+                                         params.cam_lead_m, xp=xp) - target)
+    # Shortest-arc yaw blend, so passing through +/-pi does not whip round.
+    yaw = yaw + a * xp.arctan2(xp.sin(board_yaw_ - yaw), xp.cos(board_yaw_ - yaw))
+    return target, yaw
+
+
+def camera_ray_at(nx, ny, target, yaw, params, xp=np):
+    """Screen point -> world ray, from an explicit (lagged) camera state."""
     right, up, forward = camera_basis(yaw, params.cam_pitch_deg, xp=xp)
-    target = camera_target(board_pos, yaw, params.cam_lead_m, xp=xp)
     origin = target - params.cam_distance * forward
     tan_v = xp.tan(0.5 * xp.radians(params.cam_fov_deg))
     tan_h = tan_v * params.screen_aspect
@@ -106,6 +128,17 @@ def camera_ray(nx, ny, board_pos, yaw, params, xp=np):
     sy = (0.5 - ny) * 2.0 * tan_v      # screen y runs downward
     d = forward + sx * right + sy * up
     return origin, d / xp.linalg.norm(d)
+
+
+def camera_ray(nx, ny, board_pos, yaw, params, xp=np):
+    """Screen ray for a camera aimed exactly at the board -- no lag.
+
+    Only correct at the start of an episode, where the camera has just been
+    reset. Everything inside a rollout must use `camera_ray_at` with the
+    carried state.
+    """
+    target, _ = camera_reset(board_pos, yaw, params, xp=xp)
+    return camera_ray_at(nx, ny, target, yaw, params, xp=xp)
 
 
 def board_yaw(quat, xp=np):

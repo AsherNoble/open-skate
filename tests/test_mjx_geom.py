@@ -34,7 +34,7 @@ def _cases(n_poses: int = 5, n_rays: int = 250):
             nx, ny = rng.uniform(0.15, 0.95), rng.uniform(0.30, 0.88)
             kind, hit = tm.cast(nx, ny)
             o, d = tm.camera.ray(nx, ny)
-            hd, t = cast_deck_or_ground(o, d, boxes)
+            hd, t, _missed = cast_deck_or_ground(o, d, boxes)
             yield kind, hit, o, d, bool(hd), float(t)
 
 

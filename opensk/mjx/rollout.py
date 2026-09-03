@@ -90,7 +90,13 @@ def make_step_fn(mx, model, params, deck_bid, deck_gids, n_slots: int = 2):
     dt = params.timestep
 
     def step(carry, t):
-        data, fingers, points, seg_t, t0 = carry
+        data, fingers, cam, points, seg_t, t0 = carry
+        # The camera is updated BEFORE the fingers act, matching the reference
+        # loop's order. It lags the board by `cam_follow_tau`, which changes
+        # where a mid-gesture screen point lands and so changes the force.
+        cam_target, cam_yaw = g.camera_update(
+            cam[0], cam[1], data.xpos[deck_bid],
+            g.board_yaw(data.qpos[3:7], xp=jnp), params, dt, xp=jnp)
         total_force = jnp.zeros(3)
         total_torque = jnp.zeros(3)
         new_fingers = []
@@ -98,7 +104,9 @@ def make_step_fn(mx, model, params, deck_bid, deck_gids, n_slots: int = 2):
             live = (t >= t0[s]) & (t <= t0[s] + seg_t[s][-1])
             nxny = g.path_position(points[s], seg_t[s], t - t0[s], xp=jnp)
             f, p, st = finger_force(fingers[s], nxny[0], nxny[1], model, data,
-                                    deck_bid, deck_gids, params, dt, xp=jnp)
+                                    deck_bid, deck_gids, params, dt,
+                                    cam_target=cam_target, cam_yaw=cam_yaw,
+                                    xp=jnp)
             force, torque = body_wrench(f, p, data.xipos[deck_bid], xp=jnp)
             gate = jnp.where(live, 1.0, 0.0)
             total_force = total_force + gate * force
@@ -113,8 +121,8 @@ def make_step_fn(mx, model, params, deck_bid, deck_gids, n_slots: int = 2):
         xfrc = xfrc.at[deck_bid, :3].set(total_force)
         xfrc = xfrc.at[deck_bid, 3:].set(total_torque)
         data = mjx.step(mx, data.replace(xfrc_applied=xfrc))
-        return (data, tuple(new_fingers), points, seg_t, t0), \
-            (data.qpos[:3], data.qpos[3:7])
+        return (data, tuple(new_fingers), (cam_target, cam_yaw),
+                points, seg_t, t0), (data.qpos[:3], data.qpos[3:7])
 
     return step
 
@@ -127,7 +135,9 @@ def rollout(mx, model, params, deck_bid, deck_gids, init_data,
 
     step = make_step_fn(mx, model, params, deck_bid, deck_gids, n_slots)
     fingers = tuple(initial_finger(xp=jnp) for _ in range(n_slots))
+    cam = g.camera_reset(init_data.xpos[deck_bid],
+                         g.board_yaw(init_data.qpos[3:7], xp=jnp), params, xp=jnp)
     ts = jnp.arange(n_steps, dtype=float) * params.timestep
-    (_, _, _, _, _), (pos, quat) = jax.lax.scan(
-        step, (init_data, fingers, points, seg_t, t0), ts)
+    carry, (pos, quat) = jax.lax.scan(
+        step, (init_data, fingers, cam, points, seg_t, t0), ts)
     return Rollout(pos=pos, quat=quat)

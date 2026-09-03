@@ -56,19 +56,36 @@ def ray_obb(origin, direction, box_pos, box_mat, box_half, xp=np):
     return xp.where(hit & (t > 0.0), t, NO_HIT)
 
 
+# Anything at or past this distance is a miss, not a hit. Compared against
+# rather than tested for equality because the slab arithmetic can perturb the
+# sentinel.
+MISS_THRESHOLD = 0.5 * NO_HIT
+
+
 def cast_deck_or_ground(origin, direction, deck_boxes, ground_height=0.0, xp=np):
-    """(hit_deck, distance) for a screen ray.
+    """(hit_deck, distance, missed) for a screen ray.
 
     `deck_boxes` is a sequence of (pos, mat, half) for the deck's collision
     boxes. The deck wins only if it is genuinely nearer than the ground, so a
     ray passing over the board and landing beyond it is correctly a ground hit.
+
+    `missed` -- hit nothing at all, a ray into the sky -- is a THIRD outcome and
+    not a kind of ground hit. `mj_ray` reports it as a negative distance and the
+    reference model makes such a finger permanently inert. Folding it into
+    "ground" instead puts the contact point 1e9 m away, and the lever arm from
+    the board's centre of mass then generates an arbitrarily large torque. That
+    was measured: boards launched 6.5 m into the air and trajectories went NaN.
     """
     t_deck = NO_HIT
     for pos, mat, half in deck_boxes:
         t_deck = xp.minimum(t_deck, ray_obb(origin, direction, pos, mat, half, xp=xp))
     t_ground = ray_plane(origin, direction, ground_height, xp=xp)
     hit_deck = t_deck < t_ground
-    return hit_deck, xp.where(hit_deck, t_deck, t_ground)
+    t = xp.where(hit_deck, t_deck, t_ground)
+    missed = t >= MISS_THRESHOLD
+    # Clamp a miss to zero distance so no downstream arithmetic ever sees 1e9;
+    # `missed` is what callers must branch on.
+    return hit_deck & (~missed), xp.where(missed, 0.0, t), missed
 
 
 def deck_boxes_from(sim) -> list:

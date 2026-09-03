@@ -1,0 +1,28 @@
+{
+  "info": {
+    "jax": "0.10.2",
+    "devices": [
+      "cuda:0"
+    ]
+  },
+  "results": [
+    {
+      "batch": 1,
+      "compile_s": 18.261017154999998,
+      "run_s": 0.11437609500000434,
+      "episodes_per_hour": 31475.108500599392,
+      "env_steps_per_s": 1049.170283353313,
+      "steps_per_episode": 120,
+      "x_rig": 2.098340566706626
+    },
+    {
+      "batch": 64,
+      "compile_s": 21.485839016,
+      "run_s": 0.1834448230000021,
+      "episodes_per_hour": 1255963.4893593993,
+      "env_steps_per_s": 41865.44964531331,
+      "steps_per_episode": 120,
+      "x_rig": 83.73089929062662
+    }
+  ]
+}
