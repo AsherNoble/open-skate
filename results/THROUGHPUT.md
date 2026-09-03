@@ -118,3 +118,27 @@ the plan's "try masks first, they are the cheap mitigation" is only half right:
 masks cost slightly MORE to produce. Their value is entirely in closing the
 appearance gap between our render and True Skate's, not in throughput — and
 that is now the only reason to choose them.
+
+## A correctness trap in the Warp backend: contacts are silently dropped
+
+Running real physics on the Warp backend (which the pixel path needs, since the
+batch renderer only exists there) printed, on nearly every step:
+
+    broadphase overflow - please increase nconmax to 9 or naconmax to 2078
+    narrowphase overflow - please increase nconmax to 1 or naconmax to 54
+
+The Warp backend **preallocates contact buffers and discards contacts past
+them**. It prints and carries on rather than failing, so the simulation quietly
+becomes one where the board is partly not touching the ground. Nothing in a
+throughput number or an outcome summary would reveal this — a board that falls
+through the floor still produces a perfectly well-formed trajectory.
+
+The counts are totals across all worlds, so they scale with the batch. Sized at
+`naconmax = njmax = 64 * batch`, the warnings stop.
+
+This does **not** affect any number above it in this file: the physics sweep
+runs the JAX backend, which sizes contacts dynamically, and the render sweep
+never stepped. It does affect anything run on Warp from here on.
+
+Note also that `make_data` takes `naconmax` and `njmax` — there is no `nconmax`
+argument, despite the error message naming one.

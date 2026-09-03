@@ -61,7 +61,14 @@ def run(batch: int, save_frames: int = 4) -> dict:
     cpu.reset(seed=0)
 
     mx = mjx.put_model(mjm, impl="warp")
-    d0 = jax.vmap(lambda _: mjx.make_data(mjm, impl="warp"))(jnp.arange(batch))
+    # The Warp backend preallocates contact buffers and DROPS contacts past
+    # them, printing "broadphase overflow" rather than failing. Left at the
+    # default it silently simulates a board that is partly not touching the
+    # ground. The counts are totals across all worlds, so they scale with the
+    # batch; these are the observed requirement (~9 per world) with headroom.
+    d0 = jax.vmap(lambda _: mjx.make_data(
+        mjm, impl="warp", naconmax=64 * batch,
+        njmax=64 * batch))(jnp.arange(batch))
     d0 = d0.replace(qpos=jnp.broadcast_to(jnp.array(cpu.data.qpos),
                                           (batch, cpu.model.nq)))
 
@@ -111,7 +118,14 @@ def run(batch: int, save_frames: int = 4) -> dict:
     print(json.dumps(res, indent=2), flush=True)
     # A few frames come back so the render can actually be LOOKED at. Two
     # "findings" in this project were bugs that statistics hid.
-    res["sample_frames"] = rgb[::max(1, frames // save_frames)][:save_frames, 0].tolist()
+    # Returned as a compressed buffer, not JSON lists: a modal return value of
+    # a few hundred thousand floats is what terminated the runner last time.
+    import io
+
+    buf = io.BytesIO()
+    np.savez_compressed(
+        buf, frames=rgb[::max(1, frames // save_frames)][:save_frames, 0])
+    res["sample_npz"] = buf.getvalue()
     return res
 
 
@@ -119,5 +133,8 @@ def run(batch: int, save_frames: int = 4) -> dict:
 def main(batch: int = 256, out: str = "results/pixels_gpu.json"):
     res = run.remote(batch)
     Path(out).parent.mkdir(parents=True, exist_ok=True)
-    Path(out).write_text(json.dumps(res))
+    npz = res.pop("sample_npz", None)
+    Path(out).write_text(json.dumps(res, indent=2))
+    if npz:
+        Path(out).with_suffix(".npz").write_bytes(npz)
     print(f"wrote {out}")
