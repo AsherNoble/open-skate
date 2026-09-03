@@ -42,16 +42,18 @@ class Episodes(NamedTuple):
 # An episode past these bounds did not happen: a finger on a 0.9 kg deck cannot
 # put the board 3 m up or 40 m away inside 2.3 s.
 #
-# It has to be checked because the model ALLOWS it. The deck force saturates at
-# `touch_force_max` -- a finger pulls only as hard as a finger can -- but the
-# ground shove has no such cap: `thrust = ground_shove_gain * travel / dt`, so
-# a fast full-screen drag asks for kilonewtons and MuJoCo's solver goes
-# unstable. This is the REFERENCE model's behaviour, not a port artefact: the
-# same actions blow up on CPU, where MuJoCo prints "Nan, Inf or huge value in
-# QACC". Capping the shove the way the deck force is capped is the obvious fix
-# and is a change to the fitted physics, so it belongs with the fidelity work
-# rather than here. Until then the environment reports which episodes are real
-# instead of quietly handing a trainer a NaN.
+# It has to be checked because the model still ALLOWS it. Capping the ground
+# shove at `touch_force_max`, as the deck force always was, removed the
+# numerical failure entirely -- of 128 actions from this prior, non-finite
+# episodes went 26 -> 0 and physical ones 26 -> 79. What remains is not
+# instability but violence: the cap is 854 N against a 0.9 kg deck, so a
+# sustained shove still reaches speeds no skateboard reaches, and the median
+# random action travels ~20 m in 2.3 s.
+#
+# That residue is fidelity, deferred: it is the `ground_shove_gain` question,
+# and answering it means refitting. Meanwhile a trainer can drop the ~38% of
+# random actions that fall outside these bounds, which is a very different
+# proposition from being handed a silent NaN.
 MAX_PLAUSIBLE_HEIGHT_M = 3.0
 MAX_PLAUSIBLE_TRAVEL_M = 40.0
 
