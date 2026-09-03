@@ -95,22 +95,32 @@ def build_board(p: SkateParams) -> str:
               fromto="0 -{p.axle_halfwidth - 0.012:.6f} -{TRUCK_DROP:.6f}
                       0 {p.axle_halfwidth - 0.012:.6f} -{TRUCK_DROP:.6f}"
               mass="{p.truck_mass:.6f}" friction="0.35 0.005 0.0001"
-              condim="3" rgba="0.72 0.72 0.75 1"/>
+              condim="3" material="mat_truck"/>
         <body name="{name}_wheel_l" pos="0 {p.axle_halfwidth:.6f} -{TRUCK_DROP:.6f}">
           <joint name="{name}_wheel_l_spin" type="hinge" axis="0 1 0"
                  frictionloss="{p.wheel_frictionloss:.6f}" armature="0.00002"/>
-          <geom name="{name}_wheel_l" type="sphere" size="{p.wheel_radius:.6f}"
+          <geom name="{name}_wheel_l" {_COL} type="sphere" size="{p.wheel_radius:.6f}"
                 mass="{p.wheel_mass:.6f}"
                 friction="{p.wheel_friction_slide:.6f} {p.wheel_friction_spin:.6f} {p.wheel_friction_roll:.6f}"
-                condim="3" {_sol(p)} rgba="0.92 0.90 0.84 1"/>
+                condim="3" {_sol(p)} material="mat_wheel"/>
+          <!-- The COLLIDING wheel is a sphere and must stay one: MJX cannot
+               collide a cylinder with a box or a mesh. This visual-only
+               cylinder is what a wheel looks like; it has contype/conaffinity
+               0, so it changes the picture and nothing else. -->
+          <geom name="vis_{name}_wheel_l" type="cylinder"
+                size="{p.wheel_radius:.6f} 0.011"
+                euler="90 0 0" {_VIS} material="mat_wheel"/>
         </body>
         <body name="{name}_wheel_r" pos="0 -{p.axle_halfwidth:.6f} -{TRUCK_DROP:.6f}">
           <joint name="{name}_wheel_r_spin" type="hinge" axis="0 1 0"
                  frictionloss="{p.wheel_frictionloss:.6f}" armature="0.00002"/>
-          <geom name="{name}_wheel_r" type="sphere" size="{p.wheel_radius:.6f}"
+          <geom name="{name}_wheel_r" {_COL} type="sphere" size="{p.wheel_radius:.6f}"
                 mass="{p.wheel_mass:.6f}"
                 friction="{p.wheel_friction_slide:.6f} {p.wheel_friction_spin:.6f} {p.wheel_friction_roll:.6f}"
-                condim="3" {_sol(p)} rgba="0.92 0.90 0.84 1"/>
+                condim="3" {_sol(p)} material="mat_wheel"/>
+          <geom name="vis_{name}_wheel_r" type="cylinder"
+                size="{p.wheel_radius:.6f} 0.011"
+                euler="90 0 0" {_VIS} material="mat_wheel"/>
         </body>
       </body>"""
 
@@ -144,7 +154,7 @@ def build_board(p: SkateParams) -> str:
       <geom name="vis_{i}" type="box"
             size="{0.5 * seg_len:.6f} {hw_i:.6f} {ht:.6f}"
             pos="{cxs:.6f} 0 {czs:.6f}" euler="0 {pitch:.4f} 0"
-            {_VIS} rgba="0.21 0.20 0.23 1"/>"""
+            {_VIS} material="mat_grip"/>"""
     # Rounded tips.
     for name, sgn in (("nose", 1), ("tail", -1)):
         xt, zt = _deck_station(p, sgn * 1.0, flat_half, kick_len, ka)
@@ -154,7 +164,7 @@ def build_board(p: SkateParams) -> str:
             size="{r_tip:.6f} {r_tip:.6f} {ht:.6f}"
             pos="{xt - sgn * r_tip * math.cos(ka):.6f} 0 {zt - sgn * 0.0:.6f}"
             euler="0 {-sgn * p.kick_angle_deg:.4f} 0"
-            {_VIS} rgba="0.21 0.20 0.23 1"/>"""
+            {_VIS} material="mat_grip"/>"""
 
     return f"""
     <body name="deck" pos="0 0 {ride_height(p):.6f}">
@@ -192,13 +202,44 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK) -> str:
           integrator="implicitfast" solver="Newton" cone="pyramidal"
           iterations="30" ls_iterations="12"/>
   <visual>
-    <headlight ambient="0.45 0.45 0.45" diffuse="0.7 0.7 0.7"/>
-    <map znear="0.01" zfar="80"/>
+    <headlight ambient="0.32 0.32 0.34" diffuse="0.45 0.45 0.45"
+               specular="0.12 0.12 0.12"/>
+    <map znear="0.01" zfar="80" shadowclip="6" shadowscale="1.2"/>
+    <quality shadowsize="4096" offsamples="8"/>
     <!-- The offscreen framebuffer defaults to 640x480, which caps every
          render. Silhouette fitting runs small, but figures and inspection
          want the real capture's portrait shape. -->
     <global offheight="1024" offwidth="1024"/>
   </visual>
+  <!-- APPEARANCE. Everything up to now was fitted against SILHOUETTES, where
+       only shape matters and colour is discarded, so the render was never
+       given any. That was fine while masks were the observation and stops
+       being fine the moment pixels are: a world model trained on flat grey
+       primitives has no chance against real True Skate frames. This is the
+       cheap half of Phase 4 -- procedural textures and materials, no meshes,
+       nothing that could upset MJX (textures and materials are visual-only). -->
+  <asset>
+    <texture name="sky" type="skybox" builtin="gradient"
+             rgb1="0.52 0.60 0.72" rgb2="0.86 0.89 0.93" width="256" height="256"/>
+    <texture name="tex_ground" type="2d" builtin="checker" mark="cross"
+             rgb1="0.60 0.60 0.58" rgb2="0.56 0.56 0.55"
+             markrgb="0.66 0.66 0.64" width="512" height="512"/>
+    <material name="mat_ground" texture="tex_ground" texrepeat="18 18"
+              texuniform="true" specular="0.05" shininess="0.02"
+              reflectance="0.02"/>
+    <!-- Grip tape: near-black and matte, which is what it looks like from the
+         chase camera. The noise is what stops a flat deck reading as a hole. -->
+    <texture name="tex_grip" type="2d" builtin="flat" rgb1="0.10 0.10 0.11"
+             rgb2="0.13 0.13 0.15" width="128" height="512" random="0.28"/>
+    <material name="mat_grip" texture="tex_grip" specular="0.02"
+              shininess="0.01" reflectance="0.0"/>
+    <material name="mat_truck" rgba="0.74 0.75 0.78 1" specular="0.55"
+              shininess="0.55" reflectance="0.08"/>
+    <material name="mat_wheel" rgba="0.93 0.92 0.88 1" specular="0.18"
+              shininess="0.12"/>
+    <material name="mat_concrete" rgba="0.78 0.77 0.74 1" specular="0.06"
+              shininess="0.03"/>
+  </asset>
   <worldbody>
     <light pos="2 -2 4" dir="-0.4 0.4 -1" directional="true"/>
     <!-- The chase camera, as a model element. The CPU renderer drives a free

@@ -24,9 +24,9 @@ import math
 # anchor and never reaches an obstacle.
 FLAT_PARK = """
     <geom name="ground" type="plane" size="60 60 0.1" pos="0 0 0"
-          friction="1.0 0.005 0.0001" condim="3" rgba="0.55 0.56 0.58 1"/>"""
+          friction="1.0 0.005 0.0001" condim="3" material="mat_ground"/>"""
 
-_CONCRETE = 'friction="1.0 0.005 0.0001" condim="3" rgba="0.78 0.77 0.74 1"'
+_CONCRETE = 'friction="1.0 0.005 0.0001" condim="3" material="mat_concrete"'
 _LEDGE = 'friction="0.45 0.005 0.0001" condim="3" rgba="0.86 0.85 0.81 1"'
 _RAIL = 'friction="0.22 0.004 0.0001" condim="3" rgba="0.80 0.81 0.84 1"'
 _DECK_YELLOW = 'friction="1.0 0.005 0.0001" condim="3" rgba="0.86 0.74 0.18 1"'
@@ -126,7 +126,7 @@ def sls_park() -> str:
     """A contest-style course: flat run, stairs + rail + hubba, funbox, QP."""
     park = """
     <geom name="ground" type="plane" size="60 60 0.1" pos="0 0 0"
-          friction="1.0 0.005 0.0001" condim="3" rgba="0.55 0.56 0.58 1"/>"""
+          friction="1.0 0.005 0.0001" condim="3" material="mat_ground"/>"""
     # The yellow contest flat the board is reset onto, raised a hair so it
     # reads as a surface rather than z-fighting with the ground plane.
     park += _box("contest_flat", "9.0 5.0 0.02", "0 0 0.01",
