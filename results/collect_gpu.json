@@ -1,0 +1,24 @@
+{
+  "batch": 64,
+  "compile_s": 78.94196999799999,
+  "run_s": 0.7147331809999997,
+  "episodes_per_hour": 322358.05769873736,
+  "rgb_shape": [
+    64,
+    68,
+    128,
+    64,
+    3
+  ],
+  "shard_bytes": 2684585,
+  "bytes_per_episode": 41946.640625,
+  "round_trip_max_error": 5.960464477539063e-08,
+  "pose_round_trip_max_error": 0.0,
+  "pose_nan_mismatch": 0,
+  "physical_episodes": 33,
+  "board_visible_all_frames": 0.0625,
+  "board_visible_among_physical": 0.12121212121212122,
+  "median_displacement_m": 22.53464126586914,
+  "median_displacement_physical_m": 10.435911178588867,
+  "kept_after_filter": 33
+}
