@@ -1,8 +1,8 @@
 {
   "batch": 64,
-  "compile_s": 61.86401299800001,
-  "run_s": 0.7442014769999901,
-  "episodes_per_hour": 309593.58066418226,
+  "compile_s": 59.628270878,
+  "run_s": 0.7341383350000115,
+  "episodes_per_hour": 313837.30969449563,
   "rgb_shape": [
     64,
     68,
@@ -10,15 +10,15 @@
     64,
     3
   ],
-  "shard_bytes": 2607018,
-  "bytes_per_episode": 40734.65625,
+  "shard_bytes": 3075501,
+  "bytes_per_episode": 48054.703125,
   "round_trip_max_error": 5.960464477539063e-08,
   "pose_round_trip_max_error": 0.0,
   "pose_nan_mismatch": 0,
-  "physical_episodes": 37,
-  "board_visible_all_frames": 0.078125,
-  "board_visible_among_physical": 0.13513513513513514,
-  "median_displacement_m": 22.82149887084961,
-  "median_displacement_physical_m": 10.7354736328125,
-  "kept_after_filter": 37
+  "physical_episodes": 51,
+  "board_visible_all_frames": 0.4375,
+  "board_visible_among_physical": 0.5294117647058824,
+  "median_displacement_m": 9.666165351867676,
+  "median_displacement_physical_m": 7.356843948364258,
+  "kept_after_filter": 51
 }

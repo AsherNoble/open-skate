@@ -142,12 +142,14 @@ class SkateParams:
     # acting on a 0.9 kg deck, which still throws the board 10 m and 2.3 m into
     # the air -- out of frame, so most rendered observations are blank.
     #
-    # The captured corpus does not constrain this: the score is bit-identical
-    # with and without the 854 N cap, so no real gesture ever reaches it. That
-    # makes the ceiling free to choose on other grounds, and the honest way to
-    # choose it is to lower it until the corpus score DOES move, then stay
-    # above that. See results/SHOVE_CAP.md.
-    shove_force_max: float = 854.0
+    # 100 N is measured, not chosen for convenience: swept against the corpus
+    # score on two independent halves, it is the only value at or near the
+    # minimum on BOTH (A 0.9306 -> 0.8909, B 0.9703 -> 0.9214 against the old
+    # 854 N). So the fitted shove was stronger than the captured gestures
+    # support, and capping it improves fidelity rather than trading it away.
+    # The curve is non-monotone and the exact minimum is NOT identified.
+    # See results/SHOVE_CAP.md.
+    shove_force_max: float = 100.0
     render_width: int = 64
     render_height: int = 128
 
