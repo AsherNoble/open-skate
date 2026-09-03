@@ -68,3 +68,44 @@ itself, which sets how much thrust a given screen travel asks for before any
 ceiling applies. The two are now fighting each other — a gain tuned without a
 ceiling, and a ceiling measured against that gain — and only a refit of the
 gain with the ceiling in place will settle it.
+
+## The gain itself is NOT identified by this corpus
+
+With the 100 N ceiling in place, sweeping `ground_shove_gain` over a 100× range
+on the same two halves:
+
+| gain | half A | half B | mean |
+|---|---|---|---|
+| 1.00 | 0.880237 | 0.940199 | 0.910218 |
+| 5.00 | **0.861389** | 0.957138 | 0.909263 |
+| 15.00 | 0.901718 | 0.932168 | 0.916943 |
+| 40.00 | 0.955106 | 0.931769 | 0.943438 |
+| 80.00 | 0.948481 | 0.921750 | 0.935116 |
+| 118.82 | 0.890931 | **0.921388** | 0.906159 |
+
+**The corpus cannot decide.** The mean varies by 0.04 across a hundredfold
+change in the parameter — less than the 0.06 gap between the two halves — and
+the halves prefer opposite ends of the range: A wants 5.0, B wants 118.82.
+
+This also explains the fitted value. `ground_shove_gain` is 118.82 against a
+bound of (1.0, 120.0): pinned at 99% of its ceiling, which is what a parameter
+looks like when the objective cannot see it and the optimiser drifts to an
+edge.
+
+**And the reason is a capture convention, not a modelling failure.** The flick
+corpus never pushes — gestures that land on the ground rather than the deck are
+rare in it — so there is almost no evidence in the data about what a ground
+drag does. Refitting the gain against these samples would be fitting noise, and
+the two halves disagreeing about the direction is that noise showing.
+
+### What would settle it
+
+Capture gestures that actually touch the ground. The rig can do this — the
+phones are available, and `execute_gesture_params` already has the push flag
+that produced the corpus-convention bug earlier. A few hundred ground-drag
+gestures with their outcomes would constrain this parameter directly, where
+90 flicks constrain it not at all.
+
+Until then `ground_shove_gain` stays at its fitted 118.82 with the 100 N
+ceiling: **not because that value is right, but because nothing measured so far
+says what is.**
