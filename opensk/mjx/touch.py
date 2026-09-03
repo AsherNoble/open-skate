@@ -166,6 +166,11 @@ def finger_force(state: FingerState, nx, ny, model, data, deck_bid, deck_gids,
     out_point = xp.where(on_deck, contact, data.xipos[deck_bid])
     # A finger that hit nothing does nothing, for as long as it lives.
     out_force = xp.where(kind == KIND_MISSED, xp.zeros(3), out_force)
+    # The touch-down substep only RECORDS where the finger landed; the
+    # reference returns before applying anything. Applying force here instead
+    # measures screen travel from a prev_screen of (0, 0), i.e. most of the
+    # screen in one 2 ms substep -- a 46 kN shove that threw the board 36 m.
+    out_force = xp.where(state.kind == KIND_NONE, xp.zeros(3), out_force)
 
     return out_force, out_point, FingerState(
         kind=kind, local=local, depth=depth, prev_screen=xp.stack([nx, ny]))
