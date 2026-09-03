@@ -190,6 +190,15 @@ class TouchModel:
             gain = (self.p.push_impulse_gain if f.is_push
                     else self.p.ground_shove_gain)
             thrust = sign * gain * travel / dt
+            # Capped like the deck force, and for the same reason: a finger
+            # can only push as hard as a finger can. Uncapped, a fast
+            # full-screen drag asks for kilonewtons and the solver goes
+            # unstable -- of 128 gestures drawn from the environment's prior
+            # only 26 stayed physical, and 26 went non-finite. The cap never
+            # binds on the captured corpus, so the fitted parameters are
+            # unaffected (see results/THROUGHPUT.md).
+            thrust = float(np.clip(thrust, -self.p.touch_force_max,
+                                   self.p.touch_force_max))
             self.sim.apply_force(
                 np.array([thrust * np.cos(yaw), thrust * np.sin(yaw), 0.0]),
                 self.sim.data.xipos[self.sim.deck_bid].copy())

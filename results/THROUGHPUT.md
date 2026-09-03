@@ -32,6 +32,7 @@ fast; it is that thousands of scenes step at once.
 | 256 | 12.7 s | 2.02 s | 457,135 | 30x |
 | 1024 | 14.6 s | 3.84 s | **959,373** | **64x** |
 | 4096 | 61.7 s | 51.24 s | 287,768 | 19x |
+| 16384 | 219.0 s | 210.86 s | 279,728 | 19x |
 
 Three things this says, in order of importance:
 
@@ -42,9 +43,12 @@ Three things this says, in order of importance:
    single episode on an A10G runs at 0.3x the rig. Nothing about MJX is fast;
    the parallelism is.
 3. **Throughput PEAKS near B=1024 and falls off hard.** B=4096 is 3.3x slower
-   than B=1024, and compile time goes 14.6 s -> 61.7 s. The A10G's 24 GB is
-   saturated somewhere between the two and the run starts spilling. Larger is
-   not better: **run several 1024-wide batches rather than one 4096-wide one.**
+   than B=1024, and B=16384 no better than B=4096 — the curve does not recover.
+   Compile time goes 14.6 s -> 61.7 s -> 219 s over the same range. The A10G's
+   24 GB saturates somewhere between 1024 and 4096 and the run starts spilling.
+   Larger is not better: **run several 1024-wide batches rather than one wide
+   one.** This is a per-GPU number and should be re-measured on anything with
+   more memory before assuming it holds.
 
 Compile time is a fixed 13-15 s up to B=1024, so a training run that keeps one
 compiled batch size pays it once and never again.

@@ -158,6 +158,9 @@ def finger_force(state: FingerState, nx, ny, model, data, deck_bid, deck_gids,
     travel = xp.linalg.norm(step_screen)
     sign = xp.where(step_screen[1] >= 0.0, 1.0, -1.0)
     thrust = sign * params.ground_shove_gain * travel / dt
+    # Capped like the deck force above, and for the same reason: a finger can
+    # only push as hard as a finger can. See sim/touch.py.
+    thrust = xp.clip(thrust, -params.touch_force_max, params.touch_force_max)
     shove = xp.stack([thrust * xp.cos(yaw), thrust * xp.sin(yaw),
                       xp.zeros_like(thrust)])
 
