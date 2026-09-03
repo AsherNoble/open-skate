@@ -109,3 +109,41 @@ gestures with their outcomes would constrain this parameter directly, where
 Until then `ground_shove_gain` stays at its fitted 118.82 with the 100 N
 ceiling: **not because that value is right, but because nothing measured so far
 says what is.**
+
+## The gestures the deck fit throws away DO identify it
+
+`build_corpus(want_deck=False)` returns the inverse set: gestures whose finger
+never reaches the board. 113 of them in 1391 samples. They are the only samples
+where the shove is the *only* force acting, so if anything constrains it, they
+do.
+
+| gain | half A | half B | mean |
+|---|---|---|---|
+| 1.00 | 0.549464 | 0.497692 | 0.523578 |
+| 5.00 | 0.547869 | 0.497200 | 0.522535 |
+| 15.00 | 0.556828 | 0.497241 | 0.527034 |
+| 40.00 | 0.532345 | 0.463756 | 0.498050 |
+| **80.00** | **0.526332** | **0.460710** | **0.493521** |
+| 118.82 | 0.559124 | 0.460857 | 0.509991 |
+
+**Both halves put the minimum at 80.** That is the thing the deck corpus could
+not do — there, A wanted 5.0 and B wanted 118.82. Both halves here also prefer
+the 40–80 region over either extreme.
+
+**How strong is this, honestly.** Moderate, not decisive. The spread across the
+whole gain range is 0.033 (A) and 0.037 (B), while the gap between the halves
+is 0.098 — the two halves differ in absolute difficulty more than the parameter
+moves either of them. Half B is nearly flat above 40 (0.4638 / 0.4607 / 0.4609),
+so the agreement on 80 is carried mostly by half A. What is solid is the
+*direction*: 118.82 is not supported, and the 40–80 region is.
+
+**A tension worth stating.** On the deck corpus, 80 scores slightly worse than
+118.82 for half A (0.9485 vs 0.8909) and the same for half B. So the two
+corpora mildly disagree. The ground corpus wins the argument because it is the
+one that can actually see the parameter: the deck corpus fails its own
+identifiability check, and a preference expressed by an objective that cannot
+distinguish a hundredfold change is not evidence.
+
+`ground_shove_gain` set to **80.0**. Better supported than 118.82 — which was
+pinned at 99% of its fit bound — and still not a substitute for a capture
+designed to measure the push directly.

@@ -173,7 +173,14 @@ class SkateParams:
     # number for both drove it to 58.6, which fits the trick data well and
     # implies an absurd 7.7 m/s single push. Separated so each is set by the
     # evidence that actually bears on it.
-    ground_shove_gain: float = 118.8201
+    # 80.0, not the 118.8201 the original fit produced. That value was pinned
+    # at 99% of its (1.0, 120.0) bound -- what an optimiser does when the
+    # objective cannot see a parameter -- and the deck corpus indeed cannot:
+    # over a 100x range it moves the score less than the gap between two halves,
+    # and the halves prefer opposite ends. The gestures the deck fit DISCARDS
+    # (finger never reaches the board) do constrain it, and both halves of those
+    # put the minimum at 80. See results/SHOVE_CAP.md.
+    ground_shove_gain: float = 80.0
 
     # --- spin button -------------------------------------------------------
     # True Skate's rotate button, which curved drags cannot express. Held by a
