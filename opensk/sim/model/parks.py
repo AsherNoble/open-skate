@@ -29,7 +29,7 @@ FLAT_PARK = """
 _CONCRETE = 'friction="1.0 0.005 0.0001" condim="3" material="mat_concrete"'
 _LEDGE = 'friction="0.45 0.005 0.0001" condim="3" rgba="0.86 0.85 0.81 1"'
 _RAIL = 'friction="0.22 0.004 0.0001" condim="3" rgba="0.80 0.81 0.84 1"'
-_DECK_YELLOW = 'friction="1.0 0.005 0.0001" condim="3" rgba="0.86 0.74 0.18 1"'
+_DECK_YELLOW = 'friction="1.0 0.005 0.0001" condim="3" material="mat_plaza"'
 
 
 def _box(name, size, pos, euler=None, style=_CONCRETE) -> str:

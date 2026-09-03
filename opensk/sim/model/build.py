@@ -239,6 +239,19 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK) -> str:
               shininess="0.12"/>
     <material name="mat_concrete" rgba="0.78 0.77 0.74 1" specular="0.06"
               shininess="0.03"/>
+    <!-- The contest flat. It was a FLAT yellow, and at the chase camera's
+         framing that is almost the whole observation: a black board on an
+         untextured field, with no optical flow to read translation from. The
+         board-locked camera already hides translation in the silhouette (see
+         the corpus note: 2 m of travel gives a bit-identical mask); an
+         untextured floor hides it in the pixels too. The slab tiling is the
+         signal that a world model can use to tell moving from still. -->
+    <texture name="tex_plaza" type="2d" builtin="checker" mark="edge"
+             rgb1="0.87 0.75 0.19" rgb2="0.83 0.71 0.17"
+             markrgb="0.70 0.60 0.15" width="512" height="512"/>
+    <material name="mat_plaza" texture="tex_plaza" texrepeat="4 4"
+              texuniform="true" specular="0.05" shininess="0.03"
+              reflectance="0.02"/>
   </asset>
   <worldbody>
     <light pos="2 -2 4" dir="-0.4 0.4 -1" directional="true"/>
