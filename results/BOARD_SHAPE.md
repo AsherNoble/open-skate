@@ -94,3 +94,77 @@ segmentation cache off, not a direct edit.
 
 Nothing from the game bundle is committed to this repo. The decoder and the
 derived measurements are; the art is not.
+
+---
+
+## The A/B: the objective CANNOT identify deck width (4 Sep)
+
+Scored on both halves, stored parameters, only `deck_width` moved. A deliberate
+**absurd control** was included, because a change this small needs something to
+prove the instrument can see it at all.
+
+| deck_width | half A | half B |
+|---|---|---|
+| fitted 0.1960 (7.72 in) | 0.984952 | 0.865380 |
+| game 0.2032 (8.0 in) | 0.982147 | 0.879247 |
+| **absurd 0.2600 (10.2 in)** | **0.973483** | 0.865128 |
+
+**The absurd 10.2 in plank scores BEST on half A and ties on half B.** That is
+not a marginal result to be averaged away — it means the objective cannot
+discriminate deck width, and if anything rewards a grotesquely wide deck.
+
+Without the control this would have read as "0.2032 improves A, worsens B, not
+identified" and been filed as a weak negative. With it, the conclusion is much
+stronger and much worse: **`mean_combined` is not a valid instrument for shape
+either.** That now sits alongside the finding that it ranks a *non-functional*
+board as its best point.
+
+**So `deck_width` was NOT changed.** Not because the measurement is doubtful —
+it is the most direct evidence in this project, taken from the game's own
+vertices with scale confirmed from two independent anchors — but because
+changing fitted physics on the silence of a broken instrument is exactly the
+mistake that produced the `touch_gain` mess.
+
+### The part that matters most for whoever picks this up
+
+**The width discrepancy and the camera calibration are entangled, and cannot be
+separated by silhouette fitting.** `deck_width = 0.196` was itself obtained by
+fitting the deck outline to real frames — through a camera whose FOV and
+distance are themselves fitted. A board 3.7% too narrow and a camera 3.7% too
+close produce the *same silhouette*. The mesh measurement is the first evidence
+in this project that is independent of the camera, which makes it a way to
+break that degeneracy:
+
+> If the true deck is 0.2032 m and real frames still match at the old apparent
+> size, then the camera scale is off by ~3.7% and it is the CAMERA that should
+> move, not the deck.
+
+That is a concrete, testable next step, and it may bear on the unexplained
+sim-vs-real IoU collapse by frame 3 — a scale error would show up immediately
+and grow, which is what that failure looks like.
+
+## Physics impact of the width change, characterised
+
+Same 24 gestures, CPU, fitted vs game width. Contact genuinely changes — 19 of
+24 episodes differ — but the distribution barely moves:
+
+| field | fitted | game width | shift |
+|---|---|---|---|
+| roll_deg | −13.727 | −20.331 | −0.018 sd |
+| yaw_deg | −5.380 | −3.108 | +0.050 sd |
+| peak_height | 0.138 | 0.157 | +0.090 sd |
+| air_s | 0.474 | 0.476 | +0.003 sd |
+| displacement | 3.726 | 3.322 | −0.101 sd |
+
+Every mean moves less than 0.11 sd. Whatever the width should be, it is not
+what makes this simulator violent.
+
+## A plotting bug worth recording
+
+The first outline drawing showed two sharp V-notches at roughly the truck
+positions, which looks exactly like bolt recesses. It was an artifact: the mesh
+is low-poly through the waist (24 vertices per bin), one bin was empty, and the
+outline was drawn straight across it. The half-width is in fact constant to
+within 0.5% from t = 0.175 to t = 0.825 — **the middle 65%** — and the empty bin
+had no shape meaning at all. Checked by printing per-bin vertex counts before
+believing the picture.
