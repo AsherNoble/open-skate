@@ -298,3 +298,152 @@ objective, not before one exists.
 **No geometry from the game is stored in this repository.** What is committed
 is two normalised tables and three ratios — 47 numbers — plus the decoder that
 produced them.
+
+---
+
+# SKDE AND SKTR DECODE AFTER ALL — and the wheels and trucks (4 Sep)
+
+## The refusal was based on a misreading
+
+`deck.bin` and `truck.bin` were refused as "multi-part containers whose header
+length is not yet known", with the evidence being that `deck.bin` "carries
+indices reaching vertex 1251 while the count read at the guessed offset says
+945". Both halves of that were wrong in an instructive way:
+
+* the header length IS known now — 0x3C for `SKDE`, 0x30 for `SKTR` — but that
+  was never the obstacle;
+* **945 was the first INDEX buffer's length, and 1251 is nv − 1.** These
+  containers hold TWO index buffers over ONE shared vertex pool: two draw
+  calls, two materials, one mesh. The old walk assumed repeated
+  (indices, vertices) pairs, so it read the second buffer's count as a vertex
+  count and landed inside the index data.
+
+Finding the vertex block needs no header knowledge at all: **read index
+buffers until the u32 following one is a vertex count whose block ends exactly
+at end of file.** That rule parses every mesh in the bundle, and on every one
+the indices then land inside that vertex count — a joint constraint a wrong
+offset has no way to satisfy. Four files still refuse (`grip_tape2`,
+`edge_top3` and their `oldschool_` twins).
+
+The UV-range check moved out of the decoder and into the tests. It is still
+the thing that discriminates the two-stream layout from the interleaved one,
+but it is a property of a FILE, not of the format: `truck.bin` decodes
+correctly and reaches 1.272 because its metal texture tiles, and refusing it
+there rejected a good decode.
+
+## `deck.bin` is a free cross-check, and it agrees
+
+It was decoded long after the profile was measured off `edge_*` and
+`grip_tape`, so nothing about the deck's shape came from it:
+
+| | from `edge_*` + `grip_tape` | from `deck.bin` |
+|---|---|---|
+| length | 0.8088 m | 0.8088 m |
+| width | 0.2092 m | 0.2096 m |
+| outline | parallel to t ≈ 0.70, then tapering | parallel to t ≈ 0.73, then tapering |
+
+Its 1252 vertices are spread over only 20 stations along the length, so it is
+too sparse for a station-by-station comparison — the earlier attempt at one
+reported a 22 mm error that was entirely the adaptive window widening across
+empty bins. It corroborates the shape; it does not refine it.
+
+**Topology is still refused.** With the index buffers now correctly located
+the meshes are still not manifold: `edge_top.bin` read as a strip gives 832
+triangles with 1664 edges used once against 416 used twice. That pattern is
+the signature of unshared QUADS — 1664 vertices = 416 quads, and the 416
+double-use edges are their diagonals — and the deck skins are indeed planar
+quads to 0.003 of an edge length in groups of four. But `wheel.bin` and
+`deck.bin` are not, and `truck.bin` has 542 vertices, which is not divisible
+by four. A rule that works on three files of six is a lead, not a decode.
+
+## The wheel: measured, and changed
+
+`wheel.bin` is a surface of revolution whose rim is a circle to **0.00%**
+radial standard deviation about the fitted axis.
+
+| | game | sim (was) | sim (now) |
+|---|---|---|---|
+| wheel radius | 25.33 mm | 27.0 mm | **25.33 mm** |
+| tread half-width | 10.72 mm | 11.0 mm | **10.7 mm** |
+
+The mesh is 39.4 mm wide in total but holds full radius across only 21.4 mm of
+that; the rest is the bearing hub, inside the wheel. So the visual cylinder is
+the TREAD, not the whole mesh.
+
+Note the scale used here runs the other way from the anchor argument: the
+deck's length in metres is a committed parameter and its length in game units
+is measured, so the wheel's radius follows with nothing assumed.
+
+## The truck: shaped, deliberately not dimensioned
+
+`truck.bin` decodes to 542 vertices — one truck: an axle spanning the full
+width, a hanger, and a baseplate with four bolt bosses. The board's visual
+truck is now built from its PROPORTIONS (baseplate 0.522 × 0.338 of the axle
+half-span, hanger tapering to the axle at 0.475 of that span below the deck
+face), and the baseplate is attached to the DECK body rather than the truck
+body, because a real baseplate does not pivot.
+
+**Its absolute scale is NOT recoverable and was not used.** The truck mesh is
+stored at a different scale from the deck: its bolt rectangle measures
+36.7 × 63.4 mm at the deck's scale, which matches neither standard pattern
+(new-school 41.3 × 54.0, old-school 54.0 × 92.1). Three candidate anchors
+agree only to 3.5%:
+
+| assume | implied scale |
+|---|---|
+| axle half-span = our `axle_halfwidth` 0.105 m | 1.504 |
+| bolt spacing across = old-school 54.0 mm | 1.475 |
+| bolt spacing along = old-school 92.1 mm | 1.452 |
+
+At the middle of that, the truck's axle sits **48.9 mm** below the deck face
+against our `TRUCK_DROP` of 53 mm, and its axle half-span is **103.1 mm**
+against our `axle_halfwidth` of 105 mm. Both corroborate the ruler
+measurements to within 6%; neither is precise enough to move a
+contact-bearing number, so **`axle_halfwidth`, `TRUCK_DROP` and `wheelbase`
+were not changed.** The colliding capsule is untouched and merely moved to the
+collision group so the visual truck can be seen instead of it.
+
+## Physics impact of the wheel change
+
+Same 32 gestures. `wheel_radius` feeds the collision sphere and the ride
+height, so this is a contact change:
+
+| field | before | after | shift | KS | rho |
+|---|---|---|---|---|---|
+| roll_deg | −11.679 | −23.299 | −0.039 sd | 0.06 | 0.77 |
+| yaw_deg | −10.215 | −16.214 | −0.116 sd | 0.09 | 0.61 |
+| peak_height | 0.109 | 0.111 | +0.014 sd | 0.06 | 1.00 |
+| air_s | 0.361 | 0.369 | +0.021 sd | 0.06 | 1.00 |
+| displacement | 3.630 | 3.606 | −0.007 sd | 0.06 | 1.00 |
+
+The board now rests at 0.0836 m rather than 0.0852 m.
+
+## The fitting silhouette, re-checked
+
+The mask the physics is fitted against is now the mesh's projection. At rest
+it is **one component, 7213 px, zero holes** — a clean popsicle where it used
+to be a stepped polygon of 5858 px. Larger because the deck is 6.7% wider and
+the outline no longer has gaps between slabs.
+
+## The wheelbase is NOT recoverable from the meshes — a closed question
+
+Worth recording so nobody spends the hour again. `wheelbase` is a fitted
+parameter sitting exactly at the low end of its (0.32, 0.40) bound, which is
+what an optimiser produces when the objective is blind — so a measurement
+would be valuable. There isn't one.
+
+`oldschool_trucks.bin` is named plural and does hold two clusters 6.37 units
+apart, which looks at first like a truck pair and therefore a wheelbase. It is
+not: the two clusters are 3.55 and 1.18 units wide, so they are the two parts
+of ONE truck (the hanger with its axle, and the baseplate assembly), matching
+the file's two index buffers.
+
+More decisively, **the parts do not share a frame or a scale.**
+`oldschool_deck_bottom.bin` is 8.235 units long where `oldschool_deck.bin` is
+20.659 — a factor of 2.5 between two files describing the same deck. Each mesh
+is stored in its own local frame and the game composes them with runtime
+transforms that are not in `res/*.bin`. That is the same fact the truck's
+bolt-pattern analysis ran into, stated generally.
+
+So the truck positions, and with them the wheelbase, would have to come from
+the game's code or from frames — not from the meshes.

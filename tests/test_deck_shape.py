@@ -1,4 +1,4 @@
-"""The built deck must have True Skate's shape, not merely be built from it.
+"""The built BOARD must have True Skate's shape, not merely be built from it.
 
 The profile tables are the INPUT. What renders, and what the fitting
 silhouette is taken from, is the compiled mesh -- so that is what these
@@ -182,3 +182,38 @@ class TestAgainstTheGame:
         st = np.array([0.5 * p.deck_length - 0.01])
         assert _profile(S, st)[1][0] == pytest.approx(
             _profile(skin, st)[1][0], abs=0.004)
+
+
+    def test_the_wheel_matches_the_game(self):
+        """`wheel_radius` in metres, against `wheel.bin` at the deck's scale.
+
+        The scale comes from the DECK here, not from the wheel, so this is not
+        the circular version of the anchor argument: the deck's length in
+        metres is a committed parameter, the deck's length in game units is
+        measured, and the wheel's radius then follows with nothing assumed.
+        """
+        from opensk.assets.tsmesh import read_from_ipa
+        p = SkateParams()
+        rim = _frame(np.vstack([read_from_ipa(IPA, f).positions.astype(float)
+                                for f in ("edge_top.bin", "edge_bottom.bin")]))
+        unit = p.deck_length / np.ptp(rim[:, 0])
+        w = read_from_ipa(IPA, "wheel.bin").positions.astype(float)
+        w -= 0.5 * (w.max(0) + w.min(0))
+        ax = int(np.argmin(np.ptp(w, axis=0)))
+        rad = [i for i in range(3) if i != ax]
+        c = np.array([0.0, 0.0])
+        for _ in range(6):                      # centre the fit on the rim
+            r = np.hypot(w[:, rad[0]] - c[0], w[:, rad[1]] - c[1])
+            m = r > np.quantile(r, 0.70)
+            A = np.c_[2 * w[m][:, rad[0]], 2 * w[m][:, rad[1]], np.ones(m.sum())]
+            c = np.linalg.lstsq(A, (w[m][:, rad]**2).sum(1), rcond=None)[0][:2]
+        r = np.hypot(w[:, rad[0]] - c[0], w[:, rad[1]] - c[1])
+        rim_pts = r > 0.97 * r.max()
+        assert r[rim_pts].std() / r[rim_pts].mean() < 0.01, "the rim is a circle"
+        assert p.wheel_radius == pytest.approx(r.max() * unit, abs=6e-4)
+        # The visual cylinder is the TREAD, not the whole wheel: the rest of
+        # the 39 mm mesh width is the bearing hub, which is inside the wheel.
+        a = w[:, ax]
+        from opensk.sim.model.build import TREAD_HALF_WIDTH
+        assert TREAD_HALF_WIDTH == pytest.approx(
+            0.5 * np.ptp(a[rim_pts]) * unit, abs=6e-4)

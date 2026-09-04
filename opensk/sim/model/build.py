@@ -116,7 +116,60 @@ def ride_height(p: SkateParams) -> float:
 
 
 # Axle centre to deck underside for a standard truck. Measured, not fitted.
+#
+# CORROBORATED, not replaced, by `truck.bin`: the game's truck puts its axle
+# 0.475 of its own axle half-span below the deck face, which at our
+# `axle_halfwidth` is 0.0499 m against this 0.053 -- 6% apart. Not close
+# enough to move a contact-bearing number on, and it cannot be made closer:
+# the truck mesh is stored at a different scale from the deck (its bolt
+# rectangle is 36.7 x 63.4 mm at the deck's scale, matching no standard
+# pattern), so its absolute size is only recoverable by assuming one. Three
+# candidate anchors -- our own axle half-width, and the two axes of an
+# old-school bolt pattern -- agree to within 3.5%, which is enough to SHAPE
+# the truck and not enough to dimension it.
 TRUCK_DROP = 0.053
+
+# Wheel tread half-width, measured on `wheel.bin`: the rim holds full radius
+# across 21.4 mm of the wheel's 39.4 mm total, the rest being the bearing
+# hub. Visual only -- the colliding wheel is a sphere.
+TREAD_HALF_WIDTH = 0.0107
+
+# The visual truck, as fractions of `axle_halfwidth`, read off `truck.bin`.
+# Shape only: see TRUCK_DROP above for why these are not dimensions.
+_BASEPLATE = (0.522, 0.338, 0.045)      # half along-board, across, thick
+_YOKE = (0.300, 0.340, 0.190)           # the hanger's upper body
+_HANGER = (0.200, 0.550, 0.170)         # its lower body, at the axle
+
+
+def _baseplate(p: SkateParams, name: str, sign: int) -> str:
+    """The plate bolted to the deck. It belongs to the DECK body, not the
+    truck: a real baseplate does not pivot, the hanger does."""
+    a, b, c = (v * p.axle_halfwidth for v in _BASEPLATE)
+    return f"""
+      <geom name="hw_{name}_baseplate" type="box"
+            size="{a:.6f} {b:.6f} {c:.6f}"
+            pos="{sign * 0.5 * p.wheelbase:.6f} 0 {-0.5 * p.deck_thickness - c:.6f}"
+            {_VIS} material="mat_truck"/>"""
+
+
+def _hanger_visual(p: SkateParams, name: str) -> str:
+    """Yoke, hanger and axle, drawn around the colliding capsule.
+
+    The capsule stays exactly as it was and now sits in the collision group,
+    so contact is untouched and the truck stops rendering as a bare bar.
+    Geoms are named `hw_` -- they are hardware, and the fitting silhouette
+    selects on `vis_`.
+    """
+    ya, yb, yc = (v * p.axle_halfwidth for v in _YOKE)
+    ha, hb, hc = (v * p.axle_halfwidth for v in _HANGER)
+    return f"""
+        <geom name="hw_{name}_yoke" type="box" size="{ya:.6f} {yb:.6f} {yc:.6f}"
+              pos="0 0 {-TRUCK_DROP + hc + yc:.6f}" {_VIS} material="mat_truck"/>
+        <geom name="hw_{name}_hanger" type="box" size="{ha:.6f} {hb:.6f} {hc:.6f}"
+              pos="0 0 {-TRUCK_DROP + hc:.6f}" {_VIS} material="mat_truck"/>
+        <geom name="hw_{name}_axle" type="cylinder" size="0.0045 {p.axle_halfwidth:.6f}"
+              euler="90 0 0" pos="0 0 {-TRUCK_DROP:.6f}"
+              {_VIS} material="mat_truck"/>"""
 
 # Attributes shared by every visual-only geom: no contact, no inertia, and
 # geom group 2 so `mj_ray` can be told to ignore them.
@@ -151,7 +204,7 @@ def build_board(p: SkateParams) -> str:
               fromto="0 -{p.axle_halfwidth - 0.012:.6f} -{TRUCK_DROP:.6f}
                       0 {p.axle_halfwidth - 0.012:.6f} -{TRUCK_DROP:.6f}"
               mass="{p.truck_mass:.6f}" friction="0.35 0.005 0.0001"
-              condim="3" material="mat_truck"/>
+              condim="3" {_COL} material="mat_truck"/>{_hanger_visual(p, name)}
         <body name="{name}_wheel_l" pos="0 {p.axle_halfwidth:.6f} -{TRUCK_DROP:.6f}">
           <joint name="{name}_wheel_l_spin" type="hinge" axis="0 1 0"
                  frictionloss="{p.wheel_frictionloss:.6f}" armature="0.00002"/>
@@ -164,7 +217,7 @@ def build_board(p: SkateParams) -> str:
                cylinder is what a wheel looks like; it has contype/conaffinity
                0, so it changes the picture and nothing else. -->
           <geom name="hw_{name}_wheel_l" type="cylinder"
-                size="{p.wheel_radius:.6f} 0.011"
+                size="{p.wheel_radius:.6f} {TREAD_HALF_WIDTH:.6f}"
                 euler="90 0 0" {_VIS} material="mat_wheel"/>
         </body>
         <body name="{name}_wheel_r" pos="0 -{p.axle_halfwidth:.6f} -{TRUCK_DROP:.6f}">
@@ -175,7 +228,7 @@ def build_board(p: SkateParams) -> str:
                 friction="{p.wheel_friction_slide:.6f} {p.wheel_friction_spin:.6f} {p.wheel_friction_roll:.6f}"
                 condim="3" {_sol(p)} material="mat_wheel"/>
           <geom name="hw_{name}_wheel_r" type="cylinder"
-                size="{p.wheel_radius:.6f} 0.011"
+                size="{p.wheel_radius:.6f} {TREAD_HALF_WIDTH:.6f}"
                 euler="90 0 0" {_VIS} material="mat_wheel"/>
         </body>
       </body>"""
@@ -226,6 +279,7 @@ def build_board(p: SkateParams) -> str:
     return f"""
     <body name="deck" pos="0 0 {ride_height(p):.6f}">
       <freejoint name="board"/>{vis}{col}
+{_baseplate(p, "front", +1)}{_baseplate(p, "rear", -1)}
 {truck("front", +1)}
 {truck("rear", -1)}
     </body>"""

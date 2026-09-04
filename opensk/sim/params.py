@@ -59,7 +59,10 @@ class SkateParams:
     # --- wheels ------------------------------------------------------------
     # SPHERE geoms, not cylinders: MJX-JAX cannot collide a cylinder with a
     # box or a mesh, and every park surface is a box. See the plan.
-    wheel_radius: float = 0.027
+    # Measured on the game's `wheel.bin`: the rim is a perfect circle (radial
+    # std 0.00% about the fitted axis) of radius 25.33 mm. Was 0.027, a 54 mm
+    # wheel, where the game rides a 51 mm one.
+    wheel_radius: float = 0.02533
     wheel_mass: float = 0.0970
     # Axle half-separation; wheels sit at +/- this in the deck's y axis.
     axle_halfwidth: float = 0.105

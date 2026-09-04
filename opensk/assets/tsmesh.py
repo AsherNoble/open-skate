@@ -20,18 +20,29 @@ under the interleaved reading.
 
 Layout, after a per-magic header:
 
-    u32          index count
-    u16[n_idx]   triangle-STRIP indices, degenerate-stitched
-    u32          vertex count
-    f32[nv][3]   positions
-    f32[nv][2]   UVs
+    (u32 n_idx, u16[n_idx])  ONE OR MORE index buffers
+    u32                      vertex count
+    f32[nv][3]               positions
+    f32[nv][2]               UVs
 
-`SKDE` (deck top) and `SKTR` (truck) are NOT supported. They are multi-part
-containers whose header length differs -- `deck.bin` carries indices reaching
-vertex 1251 while the count read at the guessed offset says 945, which is
-proof the offset is wrong rather than a reason to pick a bigger number.
-`decode` raises rather than returning a plausible-looking point cloud, because
-a wrong decode here would look like a shape and quietly become the board.
+**All four magics use this, `SKDE` and `SKTR` included.** They were previously
+refused as "multi-part containers whose header length is unknown", which was
+half right: their headers ARE longer (0x3C and 0x30), and they carry TWO index
+buffers over ONE shared vertex pool -- two draw calls, two materials, one mesh.
+The earlier reading walked them as repeated (indices, vertices) pairs, so it
+took the second buffer's index count for a vertex count and landed in the
+middle of the index data. That is what produced "indices reaching vertex 1251
+against a claimed 945": 945 was the FIRST buffer's length, and 1251 is one
+less than the true vertex count of 1252.
+
+Finding the vertex block needs no header knowledge at all. Read index buffers
+until the u32 that follows one is a vertex count whose block ends EXACTLY at
+end of file. That rule parses every mesh in the bundle, and on every one of
+them the indices then land inside the vertex count -- a joint constraint a
+wrong offset has no way to satisfy.
+
+Four files still refuse (`grip_tape2`, `edge_top3` and their `oldschool_`
+twins). They have some further structure, and nothing here needs them.
 """
 from __future__ import annotations
 
@@ -42,10 +53,12 @@ from pathlib import Path
 
 import numpy as np
 
-# Only magics whose decode has been VALIDATED end to end (UVs in range, indices
-# in range, file consumed exactly, and the decoded shape is the right shape).
-HEADER_BYTES = {b"OMSH": 0x0C, b"SKWH": 0x28}
-UNSUPPORTED = {b"SKDE": "deck top", b"SKTR": "truck"}
+# Header length per magic: magic, version, a pad word, then a per-magic block
+# of floats (a bounding box and two dequantisation scales) before the first
+# index count. Validated end to end on every file of each magic -- indices in
+# range, vertex block ending exactly at EOF, and the decoded cloud the right
+# shape.
+HEADER_BYTES = {b"OMSH": 0x0C, b"SKWH": 0x28, b"SKTR": 0x30, b"SKDE": 0x3C}
 
 POS_BYTES, UV_BYTES = 12, 8
 VERTEX_BYTES = POS_BYTES + UV_BYTES
@@ -67,12 +80,29 @@ class TSMesh:
 
     magic: str
     positions: np.ndarray      # (nv, 3) float32, game units
-    uvs: np.ndarray            # (nv, 2) float32, in [0, 1]
-    strip: np.ndarray          # (n_idx,) int32, raw index buffer
+    uvs: np.ndarray            # (nv, 2) float32
+    strip: np.ndarray          # (n_idx,) int32, all index buffers concatenated
+    parts: tuple               # (start, stop) into `strip`, one per buffer
 
     @property
     def extent(self) -> np.ndarray:
         return self.positions.max(axis=0) - self.positions.min(axis=0)
+
+    @property
+    def uvs_in_unit_square(self) -> bool:
+        """Whether the UVs are untiled.
+
+        This used to be a hard refusal inside `decode`, as the check that
+        discriminates the two-stream vertex layout from the interleaved one --
+        and it is still exactly that, which is why `tests/test_tsmesh.py`
+        asserts it on the board's own meshes and must go on doing so. But it
+        is a property of a FILE, not of the format: `truck.bin` decodes
+        correctly and reaches 1.272 because its metal texture tiles. Refusing
+        it there rejected a good decode, so the check moved to where it can
+        stay strict about the files it actually applies to.
+        """
+        return bool(np.isfinite(self.uvs).all()
+                    and self.uvs.min() >= -0.05 and self.uvs.max() <= 1.05)
 
 
 class TopologyNotDecoded(NotImplementedError):
@@ -103,52 +133,55 @@ def triangles(mesh: TSMesh) -> np.ndarray:
 
 
 def decode(data: bytes) -> TSMesh:
-    """Decode one `res/*.bin` mesh, or raise `UnsupportedMesh`."""
+    """Decode one `res/*.bin` mesh, or raise `UnsupportedMesh`.
+
+    Structure is validated three ways, and a wrong offset cannot satisfy all
+    three at once: the vertex block must end exactly at end of file, every
+    index must be inside the vertex count, and the positions must be finite
+    and bounded. UV range is NOT checked here -- see `uvs_in_unit_square`.
+    """
     magic = data[:4]
-    if magic in UNSUPPORTED:
-        raise UnsupportedMesh(
-            f"{magic.decode()} ({UNSUPPORTED[magic]}) is a multi-part container "
-            "whose header length is not yet known; refusing to guess")
     if magic not in HEADER_BYTES:
         raise UnsupportedMesh(f"unknown mesh magic {magic!r}")
 
     off = HEADER_BYTES[magic]
-    positions, uvs, strips, base = [], [], [], 0
-    while off < len(data):
+    spans: list[tuple[int, int]] = []
+    parts: list[tuple[int, int]] = []
+    while True:
+        if off + 8 > len(data):
+            raise UnsupportedMesh(
+                "ran out of file looking for the vertex block; this magic's "
+                "header length or its part structure is not what we assume")
         n_idx = struct.unpack_from("<I", data, off)[0]
-        idx_end = off + 4 + 2 * n_idx
-        if idx_end + 4 > len(data):
+        nxt = off + 4 + 2 * n_idx
+        if nxt + 4 > len(data):
             raise UnsupportedMesh("index block runs past end of file")
-        nv = struct.unpack_from("<I", data, idx_end)[0]
-        end = idx_end + 4 + VERTEX_BYTES * nv
-        if end > len(data):
-            raise UnsupportedMesh("vertex block runs past end of file")
+        nv = struct.unpack_from("<I", data, nxt)[0]
+        spans.append((off + 4, n_idx))
+        if nxt + 4 + VERTEX_BYTES * nv == len(data):
+            break
+        off = nxt
 
-        strip = np.frombuffer(data, "<u2", count=n_idx, offset=off + 4)
-        if n_idx and strip.max() >= nv:
+    base = nxt + 4
+    pos = np.frombuffer(data, "<f4", count=nv * 3, offset=base).reshape(nv, 3)
+    uv = np.frombuffer(data, "<f4", count=nv * 2,
+                       offset=base + POS_BYTES * nv).reshape(nv, 2)
+    if not np.isfinite(pos).all() or np.abs(pos).max() > 1.0e4:
+        raise UnsupportedMesh("positions are not finite and bounded")
+
+    strips, cursor = [], 0
+    for start, n_idx in spans:
+        s = np.frombuffer(data, "<u2", count=n_idx, offset=start).astype(np.int32)
+        if n_idx and s.max() >= nv:
             raise UnsupportedMesh(
-                f"index {strip.max()} out of range for {nv} vertices")
-        pos = np.frombuffer(data, "<f4", count=nv * 3,
-                            offset=idx_end + 4).reshape(nv, 3)
-        uv = np.frombuffer(data, "<f4", count=nv * 2,
-                           offset=idx_end + 4 + POS_BYTES * nv).reshape(nv, 2)
-        # The check that actually discriminates the two-stream layout from the
-        # interleaved one. Do not weaken it.
-        if not np.isfinite(uv).all() or uv.min() < -0.05 or uv.max() > 1.05:
-            raise UnsupportedMesh(
-                f"UVs outside [0,1] ({uv.min():.3f}..{uv.max():.3f}); the "
-                "vertex layout is not what this decoder assumes")
+                f"index {s.max()} out of range for {nv} vertices")
+        strips.append(s)
+        parts.append((cursor, cursor + n_idx))
+        cursor += n_idx
 
-        positions.append(pos)
-        uvs.append(uv)
-        strips.append(strip.astype(np.int32) + base)
-        base += nv
-        off = end
-
-    if off != len(data):
-        raise UnsupportedMesh("trailing bytes after the last part")
-    return TSMesh(magic.decode(), np.concatenate(positions),
-                  np.concatenate(uvs), np.concatenate(strips))
+    return TSMesh(magic.decode(), pos, uv,
+                  np.concatenate(strips) if strips else np.zeros(0, np.int32),
+                  tuple(parts))
 
 
 def read_from_ipa(ipa: Path, name: str) -> TSMesh:
