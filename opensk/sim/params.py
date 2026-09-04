@@ -94,6 +94,15 @@ class SkateParams:
     # sticks and pops; a flick is mostly tangential, so it slips to the rail
     # and rolls the board.
     touch_friction: float = 3.4339
+    # DO NOT "fix" this against `mean_combined`. That objective ranks a board
+    # that cannot ollie as its best point: sweeping touch_gain gives a smooth
+    # U with its floor at 45, and at 45 the tail never strikes the ground at
+    # any drag length, and the mean IoU is within 0.008 of an INERT board
+    # (0.6297 vs 0.6372 -- i.e. very slightly worse than no finger at all).
+    # The "stored parameters are 55x too strong" reading was the objective
+    # rewarding stillness, which an earlier check appeared to rule out only
+    # because it compared two flavours of inert board to each other.
+    # 2490.4318 is UNVALIDATED but functional. See results/OBJECTIVE_VS_FIT.md.
     touch_gain: float = 2490.4318
     touch_damping: float = 1.2223
     touch_force_max: float = 687.2380

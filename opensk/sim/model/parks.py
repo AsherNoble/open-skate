@@ -27,8 +27,8 @@ FLAT_PARK = """
           friction="1.0 0.005 0.0001" condim="3" material="mat_ground"/>"""
 
 _CONCRETE = 'friction="1.0 0.005 0.0001" condim="3" material="mat_concrete"'
-_LEDGE = 'friction="0.45 0.005 0.0001" condim="3" rgba="0.86 0.85 0.81 1"'
-_RAIL = 'friction="0.22 0.004 0.0001" condim="3" rgba="0.80 0.81 0.84 1"'
+_LEDGE = 'friction="0.45 0.005 0.0001" condim="3" material="mat_ledge"'
+_RAIL = 'friction="0.22 0.004 0.0001" condim="3" material="mat_rail"'
 _DECK_YELLOW = 'friction="1.0 0.005 0.0001" condim="3" material="mat_plaza"'
 
 

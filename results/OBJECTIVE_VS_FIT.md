@@ -118,3 +118,64 @@ is, the trajectories part company almost immediately — which no amount of
 retuning a single force constant is going to fix.
 
 That is the more important open question, and it is not answered here.
+
+## The joint refit: adjudicated, and it did not earn its complexity (3 Sep)
+
+The bar was set before the search ran: *if a 22-parameter joint refit cannot
+beat a one-line change, it has not earned its complexity.* 800 evaluations of
+CMA-ES over `PHYSICS_KEYS`, 25 minutes, fitted on a 75-sample train half and
+scored on the 75 it never saw.
+
+| | TRAIN | HELD |
+|---|---|---|
+| stored | 0.984952 | 0.865380 |
+| inert board | 0.767627 | 0.650036 |
+| **stored + `touch_gain`=45** | **0.682059** | **0.586309** |
+| stored + `touch_force_max`=53 | 0.906759 | 0.810759 |
+| joint refit (22 params) | 0.731340 | 0.584292 |
+
+**It ties on held and LOSES on train.** The held-out gap is 0.3% on n=75,
+which is a tie. The train gap is not: 0.7313 against 0.6821, and train is
+*exactly* what the search spent 800 evaluations minimising (`fit` minimises
+`mean_combined` on random 20-sample subsamples of train; the log's "best train
+activity" is a mislabelled print, not a different objective). A single-parameter
+edit found a better point on the search's own objective than the search did.
+
+**A reading of the refit that the data refuted.** The refit barely moved
+`touch_gain` (2490 -> 1734) and instead cut `touch_force_max` 687 -> 53, which
+looked like the same physical claim -- *the deck force is an order of magnitude
+too strong* -- reached down a different parameter, and therefore like strong
+corroboration. Scoring that change on its own says otherwise: `fmax53` alone
+gets 0.811 held, barely better than stored's 0.865 and nowhere near gain 45's
+0.586. The refit reached its score through a combination, not through an
+equivalent single knob. **Not corroboration.**
+
+**Adopted: `touch_gain = 45.0`.** The 22-parameter set is not adopted.
+
+One honesty note on the comparison. `touch_gain = 45` was chosen by a sweep
+that looked at both halves, so its held score is not a fully clean held-out
+number, whereas the refit's is. That caveat only strengthens the verdict: the
+refit's number is the *cleaner* one and it still loses on train.
+
+### The measurement nearly did not survive the day
+
+These numbers were first computed across a break in the objective. The
+appearance pass named the visual cylinder wheels `vis_*`, and the fitting
+silhouette selects geoms by that exact prefix, so the wheels entered the mask
+the physics is fitted against -- undoing a decision recorded as measured
+(wheels widen the silhouette ~26% against real frames matching within 1%).
+
+No test moved. What caught it was the objective disagreeing with itself:
+`stored` scored 0.866083 before the commit and 0.839273 after on the same
+held-out half, while `inert` stayed **bit-identical** at 0.650036 -- because an
+inert board lies flat with its wheels hidden under the deck and a flipping one
+does not. That difference-with-an-identity is the whole diagnostic.
+
+Renamed to `hw_`, `tests/test_silhouette_geoms.py` fails on the previous
+commit, and `stored` returns to 0.865380. The residual 0.0007 is understood
+and legitimate: collision spheres moved to a hidden group and visual cylinders
+took their place, so occlusion of the deck outline changed slightly.
+
+**Standing rule 3 earned its keep twice here** -- once on the statistic that
+moved when it should not have, once on the one that did not move when it
+should have.

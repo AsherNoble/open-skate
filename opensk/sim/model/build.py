@@ -202,8 +202,13 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK) -> str:
           integrator="implicitfast" solver="Newton" cone="pyramidal"
           iterations="30" ls_iterations="12"/>
   <visual>
-    <headlight ambient="0.32 0.32 0.34" diffuse="0.45 0.45 0.45"
-               specular="0.12 0.12 0.12"/>
+    <!-- The headlight is a camera-mounted lamp: it lights every surface
+         head-on, which flattens exactly the shading a world model could use
+         to read orientation. Dropped to a low ambient fill so the SUN does
+         the modelling and the board casts a shadow that says where it is
+         relative to the ground -- the one depth cue a single 2D frame has. -->
+    <headlight ambient="0.20 0.21 0.23" diffuse="0.12 0.12 0.13"
+               specular="0.04 0.04 0.04"/>
     <map znear="0.01" zfar="80" shadowclip="6" shadowscale="1.2"/>
     <quality shadowsize="4096" offsamples="8"/>
     <!-- The offscreen framebuffer defaults to 640x480, which caps every
@@ -237,8 +242,20 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK) -> str:
               shininess="0.55" reflectance="0.08"/>
     <material name="mat_wheel" rgba="0.93 0.92 0.88 1" specular="0.18"
               shininess="0.12"/>
-    <material name="mat_concrete" rgba="0.78 0.77 0.74 1" specular="0.06"
-              shininess="0.03"/>
+    <!-- Concrete, with grain. A flat fill reads as plastic and, more to the
+         point, gives a moving camera nothing to parallax against. -->
+    <texture name="tex_concrete" type="2d" builtin="flat"
+             rgb1="0.78 0.77 0.74" rgb2="0.71 0.70 0.68"
+             width="256" height="256" random="0.15"/>
+    <material name="mat_concrete" texture="tex_concrete" texrepeat="3 3"
+              texuniform="true" specular="0.06" shininess="0.03"/>
+    <texture name="tex_ledge" type="2d" builtin="flat"
+             rgb1="0.86 0.85 0.81" rgb2="0.80 0.79 0.76"
+             width="256" height="256" random="0.12"/>
+    <material name="mat_ledge" texture="tex_ledge" texrepeat="2 2"
+              texuniform="true" specular="0.14" shininess="0.12"/>
+    <material name="mat_rail" rgba="0.80 0.81 0.84 1" specular="0.7"
+              shininess="0.7" reflectance="0.15"/>
     <!-- The contest flat. It was a FLAT yellow, and at the chase camera's
          framing that is almost the whole observation: a black board on an
          untextured field, with no optical flow to read translation from. The
@@ -254,7 +271,14 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK) -> str:
               reflectance="0.02"/>
   </asset>
   <worldbody>
-    <light pos="2 -2 4" dir="-0.4 0.4 -1" directional="true"/>
+    <!-- Sun and fill. A single unshadowed lamp gave the board no contact
+         shadow at all, so a board resting on the flat and a board hovering
+         0.3 m above it rendered identically. -->
+    <light name="sun" pos="3 -4 6" dir="-0.35 0.45 -1" directional="true"
+           castshadow="true" diffuse="0.72 0.71 0.68"
+           specular="0.22 0.22 0.22"/>
+    <light name="fill" pos="-5 4 5" dir="0.5 -0.4 -1" directional="true"
+           castshadow="false" diffuse="0.20 0.21 0.24" specular="0 0 0"/>
     <!-- The chase camera, as a model element. The CPU renderer drives a free
          camera from `sim/camera.py` and ignores this one, but MJX's batch
          renderer can only render cameras that exist in the model, and its
