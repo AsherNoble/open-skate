@@ -19,30 +19,29 @@ from dataclasses import asdict, dataclass, fields, replace
 
 @dataclass(frozen=True)
 class SkateParams:
-    # --- deck geometry (a 32" x 8.25" popsicle deck) -----------------------
-    deck_length: float = 0.813
-    deck_width: float = 0.196
-    deck_thickness: float = 0.012
+    # --- deck geometry -----------------------------------------------------
+    # Copied from True Skate's own mesh, not fitted. One game unit is 39.85 mm,
+    # anchored on the WHEEL rather than the deck so the deck's size is a
+    # result and not an assumption; see `sim/model/deck_profile.py` for the
+    # four independent quantities that agreement rests on. The board is an
+    # 8.25 in x 31.84 in popsicle, 12.0 mm thick.
+    #
+    # `deck_width` was 0.196 -- fitted through a camera that is itself fitted,
+    # so a deck 6.7% narrow and a camera 6.7% close give the same silhouette.
+    # The mesh is the first camera-independent evidence available, and it
+    # agrees with `axle_halfwidth`, which was measured with a ruler.
+    deck_length: float = 0.80881
+    deck_width: float = 0.20921
+    deck_thickness: float = 0.01201
     deck_mass: float = 1.1125
     # Wheelbase: axle-to-axle. Real decks run 0.33-0.38 m.
     wheelbase: float = 0.3200
-    # Kicktails. The nose and tail angle up off the flat, and the tail angle
-    # is what sets how far the deck must pitch before it strikes the ground —
-    # i.e. it governs the pop directly. Measured, not fitted.
-    kick_angle_deg: float = 19.0
-    flat_fraction: float = 0.60
-    # Plan-view shape, fitted to the real deck's silhouette rather than
-    # guessed: 0.196 m wide (a 7.7" deck) where 0.210 was assumed, giving a
-    # rendered width/length profile matching the measured one to RMS 0.041.
-    # Plan-view taper. A popsicle deck is widest at the middle and narrows
-    # toward both tips; measured from real frames the width profile rises from
-    # ~0.22 to a peak ~0.40 and falls to ~0.19 (width/length), where a
-    # constant-width outline renders almost flat. `deck_tip_width_frac` is the
-    # width at the very tip as a fraction of the centre width, and
-    # `deck_taper_power` how sharply it narrows. Visual only -- collision stays
-    # the MJX-safe boxes.
-    deck_tip_width_frac: float = 0.50
-    deck_taper_power: float = 1.6
+    # The deck's SHAPE -- the plan-view taper and the kicktail profile -- is a
+    # pair of measured tables in `sim/model/deck_profile.py`, not scalars here.
+    # It used to be four: `kick_angle_deg`, `flat_fraction`,
+    # `deck_tip_width_frac` and `deck_taper_power`. They are gone rather than
+    # left unused, because a parameter that no longer does anything is worse
+    # than no parameter: someone tunes it and nothing moves.
 
     # --- trucks ------------------------------------------------------------
     truck_mass: float = 0.3087

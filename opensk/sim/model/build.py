@@ -18,30 +18,96 @@ from __future__ import annotations
 import math
 
 from ..params import SkateParams
+from . import deck_profile as dp
 from .parks import FLAT_PARK, PARKS  # noqa: F401  (re-exported)
 
 
-def _deck_station(p: SkateParams, u: float, flat_half: float,
-                  kick_len: float, ka: float) -> tuple[float, float]:
-    """(x, z) of a point at normalised station `u` along the deck's centreline.
+def deck_station(p: SkateParams, t: float) -> tuple[float, float]:
+    """(x, z) on the deck's centreline at signed station `t` in [-1, 1].
 
-    u = 0 is the middle, +/-1 the tips. Follows the flat, then rises along the
-    kick, so the visual outline tracks the same shape the collision boxes have.
+    The shape comes from `deck_profile`, measured off the game's own mesh.
+    Both the visual shell and the collision boxes are built from this one
+    function, so they cannot drift apart.
     """
-    half = 0.5 * p.deck_length
-    x = u * half
-    if abs(x) <= flat_half:
-        return x, 0.0
-    over = abs(x) - flat_half
-    return (math.copysign(flat_half + over * math.cos(ka), x),
-            over * math.sin(ka))
+    return dp.station(t, 0.5 * p.deck_length)
 
 
-def _kick(p: SkateParams) -> tuple[float, float]:
-    """(flat half-length, kick section length) along the deck's long axis."""
-    flat_half = 0.5 * p.deck_length * p.flat_fraction
-    kick_len = 0.5 * p.deck_length - flat_half
-    return flat_half, kick_len
+# Collision-box boundaries in |t|. Three boxes per kick rather than one: the
+# real kick is a progressive CURVE reaching ~21 deg, and a single chord across
+# it puts the tail tip 12 mm low, which is a pop-height error, not a cosmetic
+# one. Boxes, because MJX cannot collide anything else with a park.
+_COL_EDGES = (0.0, 0.55, 0.78, 0.91, 1.0)
+
+# How many points across the top (and again across the bottom) of the visual
+# shell's cross-section, and the stations it is swept along. Denser toward the
+# tips, where all of the curvature is.
+_SHELL_K = 10
+_SHELL_T = (0.0, 0.12, 0.24, 0.36, 0.46, 0.54, 0.60, 0.66, 0.71, 0.755,
+            0.79, 0.82, 0.85, 0.875, 0.90, 0.92, 0.94, 0.955, 0.968, 0.98,
+            0.99, 0.995)
+
+
+def _shell(p: SkateParams) -> tuple[str, str]:
+    """`vertex` and `face` attributes for the visual deck mesh.
+
+    Generated here from the profile tables -- no geometry from the game is
+    stored or shipped. The cross-section is a constant-thickness plate carrying
+    the measured concave, swept along the centreline and tilted by its local
+    slope, and closed at each tip with a fan to an apex vertex.
+    """
+    hw_max = 0.5 * p.deck_width
+    ht = 0.5 * p.deck_thickness
+    cc = dp.CONCAVE_FRAC * p.deck_width
+
+    ts = [-t for t in reversed(_SHELL_T[1:])] + list(_SHELL_T)
+    verts: list[tuple[float, float, float]] = []
+    for t in ts:
+        xc, zc = deck_station(p, t)
+        pitch = dp.pitch_rad(t)
+        sp, cp = math.sin(pitch), math.cos(pitch)
+        w = hw_max * dp.half_width_frac(t)
+        # The tip is rounded in THREE dimensions, not two. Without this the
+        # cross-section keeps full thickness right up to the apex, and because
+        # it is tilted by the kick it then pokes out PAST the apex -- the deck
+        # ends in a chisel and measures 4 mm longer than it is.
+        cap = 1.0
+        if abs(t) > 0.96:
+            cap = math.sqrt(max(0.0, 1.0 - ((abs(t) - 0.96) / 0.04) ** 2))
+        ring = []
+        for surface in (+1, -1):                 # top left->right, bottom back
+            for k in range(_SHELL_K):
+                f = k / (_SHELL_K - 1)
+                s = (-1.0 + 2.0 * f) if surface > 0 else (1.0 - 2.0 * f)
+                n = (-cc * (1.0 - s * s) + surface * ht) * cap
+                ring.append((xc - n * sp, s * w, zc + n * cp))
+        verts.extend(ring)
+
+    ring_n = 2 * _SHELL_K
+    faces: list[tuple[int, int, int]] = []
+    for i in range(len(ts) - 1):
+        a, b = i * ring_n, (i + 1) * ring_n
+        for j in range(ring_n):
+            j2 = (j + 1) % ring_n
+            faces.append((a + j, b + j, a + j2))
+            faces.append((a + j2, b + j, b + j2))
+    for end, ring0 in ((-1.0, 0), (1.0, (len(ts) - 1) * ring_n)):
+        xc, zc = deck_station(p, end)
+        apex = len(verts)
+        verts.append((xc, 0.0, zc))
+        for j in range(ring_n):
+            j2 = (j + 1) % ring_n
+            tri = (ring0 + j, apex, ring0 + j2)
+            faces.append(tri if end > 0 else (tri[0], tri[2], tri[1]))
+
+    v = " ".join(f"{c:.5f}" for xyz in verts for c in xyz)
+    f = " ".join(str(i) for tri in faces for i in tri)
+    return v, f
+
+
+def deck_asset(p: SkateParams) -> str:
+    """The `<mesh>` asset for the visual deck shell."""
+    v, f = _shell(p)
+    return f'    <mesh name="deck_shell" vertex="{v}" face="{f}"/>\n'
 
 
 def ride_height(p: SkateParams) -> float:
@@ -64,17 +130,7 @@ _COL = 'group="3"'
 
 def build_board(p: SkateParams) -> str:
     """The board body, as an MJCF fragment rooted at a free joint."""
-    flat_half, kick_len = _kick(p)
     hw, ht = 0.5 * p.deck_width, 0.5 * p.deck_thickness
-    ka = math.radians(p.kick_angle_deg)
-    # Centre of each kick section, in the deck frame: it starts at the end of
-    # the flat and rises along the kick angle.
-    kx = flat_half + 0.5 * kick_len * math.cos(ka)
-    kz = 0.5 * kick_len * math.sin(ka)
-
-    # Split deck mass by section length so the ends are not artificially heavy.
-    flat_mass = p.deck_mass * p.flat_fraction
-    kick_mass = 0.5 * p.deck_mass * (1.0 - p.flat_fraction)
 
     ang = math.radians(p.kingpin_angle_deg)
     cx, cz = math.cos(ang), math.sin(ang)
@@ -124,65 +180,52 @@ def build_board(p: SkateParams) -> str:
         </body>
       </body>"""
 
-    # A faithful VISUAL outline, separate from the collision boxes.
-    #
-    # True Skate's deck is a popsicle: widest at the middle, narrowing toward
-    # both tips. Measured off real frames the width profile rises to a peak of
-    # ~0.40 (width/length) and falls to ~0.19 at the ends, where a
-    # constant-width outline renders nearly flat and reads too blunt. The
-    # outline is therefore built as a run of slabs whose half-width follows a
-    # taper, plus rounded tips.
-    #
-    # Collision keeps the three plain boxes: cheap, MJX-safe, same tip, so pop
-    # mechanics are unchanged. Visual geoms carry contype=0/conaffinity=0 and
-    # mass=0, and sit in geom group 2 so ray casts can exclude them.
-    n_slab = 11
-    vis = ""
-    for i in range(n_slab):
-        u0, u1 = -1.0 + 2.0 * i / n_slab, -1.0 + 2.0 * (i + 1) / n_slab
-        um = 0.5 * (u0 + u1)
-        # Half-width at this station, tapering from the centre to the tips.
-        t = abs(um) ** p.deck_taper_power
-        hw_i = hw * (1.0 - (1.0 - p.deck_tip_width_frac) * t)
-        # Position along the deck, following the flat then the kick.
-        xa, za = _deck_station(p, u0, flat_half, kick_len, ka)
-        xb, zb = _deck_station(p, u1, flat_half, kick_len, ka)
-        cxs, czs = 0.5 * (xa + xb), 0.5 * (za + zb)
-        seg_len = math.hypot(xb - xa, zb - za)
+    # The VISUAL deck is one generated mesh, swept along the measured profile.
+    # It replaced eleven constant-width boxes plus two ellipsoid tips, which
+    # rendered as a staircase in plan view and a banana from the side -- see
+    # `deck_profile` for what that cost. Named `vis_deck` because the fitting
+    # silhouette selects on the `vis_` prefix, and this IS the outline the
+    # physics should be fitted against.
+    vis = f"""
+      <geom name="vis_deck" type="mesh" mesh="deck_shell" {_VIS}
+            material="mat_grip"/>"""
+
+    # COLLISION: boxes following the same centreline. Each spans a segment of
+    # the profile; its half-width is the profile's mean over that segment, so
+    # the tip box does not collide as if it were full width. Mass is split by
+    # segment length, keeping the total exactly `deck_mass`.
+    col, spans = "", []
+    for lo, hi in zip(_COL_EDGES[:-1], _COL_EDGES[1:]):
+        spans.append((lo, hi))
+    lengths = [hi - lo for lo, hi in spans]
+    total = 2.0 * sum(lengths) - lengths[0]      # the flat box is not mirrored
+
+    def box(name: str, t0: float, t1: float, mass: float) -> str:
+        xa, za = deck_station(p, t0)
+        xb, zb = deck_station(p, t1)
+        seg = math.hypot(xb - xa, zb - za)
         pitch = -math.degrees(math.atan2(zb - za, xb - xa))
-        vis += f"""
-      <geom name="vis_{i}" type="box"
-            size="{0.5 * seg_len:.6f} {hw_i:.6f} {ht:.6f}"
-            pos="{cxs:.6f} 0 {czs:.6f}" euler="0 {pitch:.4f} 0"
-            {_VIS} material="mat_grip"/>"""
-    # Rounded tips.
-    for name, sgn in (("nose", 1), ("tail", -1)):
-        xt, zt = _deck_station(p, sgn * 1.0, flat_half, kick_len, ka)
-        r_tip = hw * p.deck_tip_width_frac
-        vis += f"""
-      <geom name="vis_{name}_tip" type="ellipsoid"
-            size="{r_tip:.6f} {r_tip:.6f} {ht:.6f}"
-            pos="{xt - sgn * r_tip * math.cos(ka):.6f} 0 {zt - sgn * 0.0:.6f}"
-            euler="0 {-sgn * p.kick_angle_deg:.4f} 0"
-            {_VIS} material="mat_grip"/>"""
+        n = 9
+        w = hw * sum(dp.half_width_frac(t0 + (t1 - t0) * k / (n - 1))
+                     for k in range(n)) / n
+        return f"""
+      <geom name="{name}" {_COL} type="box"
+            size="{0.5 * seg:.6f} {w:.6f} {ht:.6f}"
+            pos="{0.5 * (xa + xb):.6f} 0 {0.5 * (za + zb):.6f}"
+            euler="0 {pitch:.4f} 0" mass="{mass:.6f}"
+            friction="{p.deck_friction_slide:.6f} 0.005 0.0001"
+            condim="3" {_sol(p)} rgba="0.20 0.20 0.24 1"/>"""
+
+    lo, hi = spans[0]
+    col += box("deck_flat", -hi, hi, p.deck_mass * (2.0 * lengths[0]) / total)
+    for i, (lo, hi) in enumerate(spans[1:]):
+        m = p.deck_mass * lengths[i + 1] / total
+        col += box(f"deck_nose_{i}", lo, hi, m)
+        col += box(f"deck_tail_{i}", -lo, -hi, m)
 
     return f"""
     <body name="deck" pos="0 0 {ride_height(p):.6f}">
-      <freejoint name="board"/>{vis}
-      <geom name="deck_flat" {_COL} type="box" size="{flat_half:.6f} {hw:.6f} {ht:.6f}"
-            pos="0 0 0" mass="{flat_mass:.6f}"
-            friction="{p.deck_friction_slide:.6f} 0.005 0.0001"
-            condim="3" {_sol(p)} rgba="0.20 0.20 0.24 1"/>
-      <geom name="deck_nose" {_COL} type="box" size="{0.5 * kick_len:.6f} {hw:.6f} {ht:.6f}"
-            pos="{kx:.6f} 0 {kz:.6f}" euler="0 -{p.kick_angle_deg:.4f} 0"
-            mass="{kick_mass:.6f}"
-            friction="{p.deck_friction_slide:.6f} 0.005 0.0001"
-            condim="3" {_sol(p)} rgba="0.24 0.20 0.20 1"/>
-      <geom name="deck_tail" {_COL} type="box" size="{0.5 * kick_len:.6f} {hw:.6f} {ht:.6f}"
-            pos="-{kx:.6f} 0 {kz:.6f}" euler="0 {p.kick_angle_deg:.4f} 0"
-            mass="{kick_mass:.6f}"
-            friction="{p.deck_friction_slide:.6f} 0.005 0.0001"
-            condim="3" {_sol(p)} rgba="0.24 0.20 0.20 1"/>
+      <freejoint name="board"/>{vis}{col}
 {truck("front", +1)}
 {truck("rear", -1)}
     </body>"""
@@ -224,7 +267,7 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK) -> str:
        cheap half of Phase 4 -- procedural textures and materials, no meshes,
        nothing that could upset MJX (textures and materials are visual-only). -->
   <asset>
-    <texture name="sky" type="skybox" builtin="gradient"
+{deck_asset(p)}    <texture name="sky" type="skybox" builtin="gradient"
              rgb1="0.52 0.60 0.72" rgb2="0.86 0.89 0.93" width="256" height="256"/>
     <texture name="tex_ground" type="2d" builtin="checker" mark="cross"
              rgb1="0.60 0.60 0.58" rgb2="0.56 0.56 0.55"

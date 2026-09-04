@@ -20,7 +20,10 @@ import re
 from opensk.sim.core import SkateSim
 from opensk.sim.params import SkateParams
 
-OUTLINE = re.compile(r"^vis_(\d+|nose_tip|tail_tip)$")
+# The deck's visual shell is now a single generated mesh, swept along the
+# profile measured off the game's own geometry. It replaced eleven
+# constant-width boxes plus two ellipsoid tips.
+OUTLINE = re.compile(r"^vis_deck$")
 
 
 def test_only_the_deck_outline_is_in_the_silhouette():

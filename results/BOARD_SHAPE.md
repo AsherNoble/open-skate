@@ -168,3 +168,133 @@ outline was drawn straight across it. The half-width is in fact constant to
 within 0.5% from t = 0.175 to t = 0.825 — **the middle 65%** — and the empty bin
 had no shape meaning at all. Checked by printing per-bin vertex counts before
 believing the picture.
+
+---
+
+# THE BOARD NOW HAS THE GAME'S SHAPE (4 Sep)
+
+Everything above measured the deck and changed nothing. This section is the
+change. `opensk/sim/model/deck_profile.py`, `tests/test_deck_shape.py`.
+
+## Three corrections to the measurements above
+
+**1. The deck is 8.25 in, not 8.0 in — and the earlier scale was circular.**
+The width above was taken from `deck_bottom.bin`, the UNDERSIDE surface, which
+is inset ~3 mm from the deck's outer edge. `edge_top.bin` and
+`edge_bottom.bin` — the perimeter band, 1664 vertices each, both decodable —
+carry the true outline at **5.2496 u**, not 5.098. And the unit itself was
+fixed by *assuming* the deck was 8.0 in, so reporting the deck's size from it
+restated the assumption.
+
+The scale is now anchored on the **wheel**, which is independent of the deck.
+`wheel.bin` is 1.2546 u across; taken as a 50 mm street wheel that gives
+**39.85 mm per unit**, and four further quantities then land on standard parts
+without being asked to:
+
+| quantity | game units | at 39.85 mm/u | standard? |
+|---|---|---|---|
+| deck width | 5.2496 | 209.2 mm = **8.24 in** | 8.25, a stock size |
+| deck length | 20.2953 | 808.8 mm = **31.84 in** | its usual pairing |
+| deck thickness | 0.3014 | **12.0 mm** | a 7-ply deck |
+| oldschool wheel | 1.4447 | 57.6 mm | a cruiser wheel |
+
+Four results from one assumed number. The previous "two independent anchors"
+were the deck measured two ways.
+
+A fifth check comes from inside our own model: `axle_halfwidth = 0.105` was
+measured with a ruler and implies a 0.21 m deck. **The game's 0.2092 m agrees;
+the fitted 0.196 m did not.** So the sim deck was 6.7% narrow, not 3.7%.
+
+**2. More of the deck decodes than was thought.** `deck.bin` is `SKDE` and is
+still refused, but the deck does not need it: `grip_tape.bin` (the top
+surface), `deck_bottom.bin` (the underside) and the four `edge_*` files are
+all `OMSH`. Between them they give the outline, the centreline and the
+thickness. The plan's table listing `deck_bottom.bin` as `SKDE` was wrong.
+
+**3. The kick is a progressive CURVE, and the deck dips before it.** The
+"~22.1 deg kick angle, 0.77 flat fraction" above came from a binned heuristic
+and was flagged approximate; it is. Measured along the centreline, the deck is
+flat to within 0.1 mm out to t = 0.5, dips **1.2 mm** at t = 0.65, and only
+then rises — through 10 deg at t = 0.75, 20 deg at t = 0.90, to a tip
+**30 mm** above the flat. No straight ramp can produce that shape.
+
+## What the deck was, and is
+
+| | OLD | NEW | GAME |
+|---|---|---|---|
+| plan view | 11 constant-width boxes, taper `abs(u)**1.6` | one swept mesh | — |
+| tips | 2 ellipsoids | the measured cap | — |
+| side | one straight 19 deg ramp from t = 0.60 | the measured curve | — |
+| width | 0.1960 m (7.72 in) | **0.2092 m** | 0.2092 m |
+| length | 0.8130 m | **0.8088 m** | 0.8088 m |
+| thickness | 0.0120 m | **0.0120 m** | 0.0120 m |
+| tip rise | 52 mm | **31 mm** | 30 mm |
+| kick starts | 0.255 m from centre | **0.31 m** | 0.31 m |
+| concave | none | 5.6 mm | 5.6 mm |
+
+The shape now lives in two measured tables rather than four scalars.
+`kick_angle_deg`, `flat_fraction`, `deck_tip_width_frac` and
+`deck_taper_power` are **deleted**, not left unused: a parameter that no
+longer does anything is worse than no parameter, because someone tunes it and
+nothing moves.
+
+## How closely it matches, measured on the OUTPUT
+
+The tables are the input. What renders, and what the fitting silhouette is
+taken from, is the **compiled mesh** — so that is what is compared, vertex
+cloud against vertex cloud, at 20 stations along the half-length:
+
+| | rms | max |
+|---|---|---|
+| plan-view half-width | **1.28 mm** | 3.83 mm |
+| centreline profile | **0.48 mm** | 1.29 mm |
+
+On a 209 mm wide, 809 mm long deck. The 1.2 mm pre-kick dip is reproduced.
+
+Two measurement bugs were found and fixed getting there, both of the kind this
+project keeps hitting — a statistic that moved for a reason that was not the
+physics:
+
+* **the mid-surface, not the median.** Taking the median z of a centreline
+  band mixes the top and bottom skins and jumps by the plate's whole thickness
+  depending on how many of each land in a bin. It made BOTH profiles
+  non-monotone, the game's included — which is what gave it away.
+* **bins narrower than the mesh's ring spacing alias.** A fixed 20 mm bin
+  falls between rings and reports whichever neighbour leaks in, showing up as
+  a +-6 mm oscillation in the sim profile that is not in the mesh.
+
+## Physics impact, characterised not suppressed
+
+Contact geometry changed on purpose: the deck is wider, and the three
+collision boxes became **seven** (a flat plus three per kick), because one
+chord across the real curve puts the tail tip 12 mm low — a pop-height error,
+not a cosmetic one. Same 32 random gestures, CPU:
+
+| field | old | new | shift | KS | rho |
+|---|---|---|---|---|---|
+| roll_deg | −10.790 | −11.679 | −0.003 sd | 0.16 | 0.76 |
+| yaw_deg | −2.968 | −10.215 | −0.180 sd | 0.16 | 0.60 |
+| peak_height | 0.111 | 0.109 | −0.013 sd | 0.19 | 0.94 |
+| air_s | 0.394 | 0.361 | −0.064 sd | 0.06 | 0.90 |
+| displacement | 4.461 | 3.630 | −0.203 sd | 0.16 | 0.90 |
+
+**Every episode differs and no outcome mean moves as much as 0.21 sd.** The
+fitted parameters still mean approximately what they meant.
+
+One individual gesture moved a great deal, and it is the informative one: the
+tail-press ollie used for figures peaks at **0.275 m instead of 0.746 m**. A
+tail 21 mm lower strikes the ground at a shallower pitch, so less rotation is
+banked before the impulse. 0.746 m was never a plausible ollie; this is the
+geometry correcting a number nobody had questioned.
+
+## What was deliberately NOT done
+
+**Nothing was fitted, and `mean_combined` was not consulted.** It cannot
+discriminate a 10.2 in plank from an 8 in deck (the A/B above), so it has no
+standing to judge a 6.7% width change. This change rests on the game's own
+vertices instead. The corpus A/B belongs in the same commit as a REPLACEMENT
+objective, not before one exists.
+
+**No geometry from the game is stored in this repository.** What is committed
+is two normalised tables and three ratios — 47 numbers — plus the decoder that
+produced them.
