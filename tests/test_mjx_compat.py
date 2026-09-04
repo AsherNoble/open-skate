@@ -11,7 +11,14 @@ import pytest
 from opensk.sim.model.build import FLAT_PARK, build_scene
 from opensk.sim.params import SkateParams
 
-BANNED = {mujoco.mjtGeom.mjGEOM_CYLINDER, mujoco.mjtGeom.mjGEOM_ELLIPSOID}
+# `int()` is load-bearing. `model.geom_type[i]` is a numpy int32, and
+# `np.int32(5) in {mujoco.mjtGeom.mjGEOM_CYLINDER}` is **False** while
+# `np.int32(5) == mujoco.mjtGeom.mjGEOM_CYLINDER` is True: set membership
+# falls through pybind11's enum comparison and never matches. Written the
+# obvious way, this guard sat green for the whole project over a model
+# carrying four cylinders and two ellipsoids. A test that cannot fail is not
+# a test -- standing rule 3, in the test suite this time.
+BANNED = {int(mujoco.mjtGeom.mjGEOM_CYLINDER), int(mujoco.mjtGeom.mjGEOM_ELLIPSOID)}
 
 
 @pytest.fixture(scope="module")
@@ -19,14 +26,30 @@ def model():
     return mujoco.MjModel.from_xml_string(build_scene(SkateParams(), FLAT_PARK))
 
 
-def test_no_cylinder_or_ellipsoid_geoms(model):
-    """MJX-JAX cannot collide these with a box or mesh, and parks are boxes."""
+def test_no_collidable_cylinder_or_ellipsoid_geoms(model):
+    """MJX-JAX cannot collide these with a box or mesh, and parks are boxes.
+
+    The constraint is on CONTACT, not on the shape existing: a cylinder with
+    contype/conaffinity 0 never enters a collision pair, and the visual wheels
+    are exactly that. So this asserts what is actually required, in the same
+    form as the mesh guard below.
+    """
     bad = [
         mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_GEOM, i)
         for i in range(model.ngeom)
-        if model.geom_type[i] in BANNED
+        if int(model.geom_type[i]) in BANNED
+        and (model.geom_contype[i] or model.geom_conaffinity[i])
     ]
     assert not bad, f"MJX cannot collide these reliably: {bad}"
+
+
+def test_the_banned_set_actually_matches_geom_type(model):
+    """The guard above must be able to fail. It could not, for months."""
+    types = {int(t) for t in model.geom_type}
+    assert types & BANNED, (
+        "no cylinder or ellipsoid in the model at all -- this canary can no "
+        "longer detect the numpy/pybind membership bug it exists to catch")
+    assert any(int(model.geom_type[i]) in BANNED for i in range(model.ngeom))
 
 
 def test_no_collidable_meshes(model):
