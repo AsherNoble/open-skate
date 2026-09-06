@@ -34,7 +34,7 @@ No Modal or remote service is involved. Each domain compiles one reusable
 `GestureEnv(pixels=True, park=..., appearance=...)`; its four shards receive
 distinct deterministic seeds. Files are partitioned as
 `park=<park>/appearance=<appearance>/shard_NNNNN.npz`. Every shard embeds both
-values in format-v2 metadata, and `manifest.json` records the complete schedule.
+values in format-v3 metadata, and `manifest.json` records the complete schedule.
 
 The current Apple Silicon development host can compile and CPU-render all nine
 MJCF combinations, but the training batch renderer requires the optional MJX

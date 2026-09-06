@@ -221,11 +221,7 @@ class GestureEnv:
         # Start from the exact state already settled by the pose backend.  A
         # second hard-coded 200-step settle made `settle_steps` ineffective
         # for pixels and put the two backends at different initial states.
-        d0 = d0.replace(
-            qpos=jnp.broadcast_to(jnp.asarray(self._d0.qpos),
-                                  (batch, self._cpu.model.nq)),
-            qvel=jnp.broadcast_to(jnp.asarray(self._d0.qvel),
-                                  (batch, self._cpu.model.nv)))
+        d0 = self._pixel_initial_state(d0, jnp)
 
         # The context owns Warp buffers and deregisters them when collected,
         # so it must outlive every use of its pytree handle.
@@ -241,6 +237,7 @@ class GestureEnv:
             return mjx.get_rgb(ctx, cam_id, rgb), d
 
         deck_gids = sorted(self._cpu._deck_gids)
+        timing = self._pixel_rollout_options()
 
         def go(vecs, d):
             points, durations, easings, delays, spin = jax.vmap(
@@ -256,11 +253,22 @@ class GestureEnv:
             return rollout_batched(mx, self._cpu.model, p, self._cpu.deck_bid,
                                    deck_gids, d, points, seg_t, t0,
                                    n_slots=n_slots, render=render,
-                                   cam_id=cam_id, seconds=self.seconds,
-                                   spin=spin, rest_z=self.rest_z)
+                                   cam_id=cam_id, spin=spin, **timing)
 
         self._d0_pixel = d0
         return jax.jit(go)
+
+    def _pixel_initial_state(self, data, xp):
+        """Broadcast the one canonical, configured-settle initial state."""
+        return data.replace(
+            qpos=xp.broadcast_to(xp.asarray(self._d0.qpos),
+                                 (self.batch, self._cpu.model.nq)),
+            qvel=xp.broadcast_to(xp.asarray(self._d0.qvel),
+                                 (self.batch, self._cpu.model.nv)))
+
+    def _pixel_rollout_options(self):
+        """Timing shared by pose and pixel rollouts."""
+        return {"seconds": self.seconds, "rest_z": self.rest_z}
 
     def _make_pixel_model(self):
         """Compile the exact park/appearance pair used by pixel rollouts.

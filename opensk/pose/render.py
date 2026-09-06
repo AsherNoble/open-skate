@@ -20,6 +20,20 @@ LOCAL_PREVIEW_HEIGHT = 812
 RENDER_MODES = (TRAINING_MODE, PREVIEW_MODE)
 
 
+def gl_backend_unavailable(exc: Exception) -> bool:
+    """Recognise only concrete GL context failures, never renderer bugs."""
+    kind = (type(exc).__module__, type(exc).__name__)
+    message = str(exc).lower()
+    known = {
+        ("mujoco.cgl.cgl", "CGLError"): ("invalid coregraphics connection",),
+        ("mujoco", "FatalError"): (
+            "an opengl platform library has not been loaded",),
+        ("OpenGL.raw.EGL._errors", "EGLError"): (
+            "egl_not_initialized", "egl_bad_display"),
+    }
+    return kind in known and any(token in message for token in known[kind])
+
+
 class SceneRenderer:
     """Offscreen renderer driving a MuJoCo free camera from `FollowCamera`.
 

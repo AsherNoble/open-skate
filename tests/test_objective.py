@@ -11,6 +11,7 @@ import pytest
 
 from opensk.fit.objective import real_masks, score_sample
 from opensk.pose.frames import CORPUS, iter_samples
+from opensk.pose.render import SceneRenderer, gl_backend_unavailable
 from opensk.sim.core import SkateSim
 from opensk.sim.params import SkateParams
 from opensk.sim.touch import ON_DECK, TouchModel
@@ -31,7 +32,19 @@ def usable():
     return out
 
 
-def test_scores_real_samples(usable):
+@pytest.fixture(scope="module")
+def render_capable():
+    sim = SkateSim()
+    try:
+        renderer = SceneRenderer(sim, height=8, width=8)
+        renderer._renderer.close()
+    except Exception as exc:
+        if gl_backend_unavailable(exc):
+            pytest.skip(f"MuJoCo GL backend unavailable: {exc}")
+        raise
+
+
+def test_scores_real_samples(usable, render_capable):
     random.seed(0)
     scored = [score_sample(s) for s in random.sample(usable, 6)]
     assert any(s.n_scored > 0 for s in scored), "no frame survived filtering"
@@ -46,7 +59,7 @@ def _mean_iou(samples, params):
     return float(np.mean(vals)) if vals else 0.0
 
 
-def test_objective_is_not_flat(usable):
+def test_objective_is_not_flat(usable, render_capable):
     """Different physics must score differently, or sysid cannot work.
 
     Deliberately does NOT assert that the current defaults beat an inert

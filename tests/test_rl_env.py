@@ -161,3 +161,22 @@ def test_every_pixel_park_appearance_environment_constructs_without_warp():
             assert selected.park_name == park_name
             assert selected.appearance == appearance
             assert tuple(model.cam_resolution[model.camera("chase").id]) == (64, 128)
+
+
+def test_pixel_backend_forwards_nondefault_duration_and_settled_state():
+    from opensk.rl.env import GestureEnv
+
+    selected = GestureEnv(pixels=True, batch=2, seconds=0.37,
+                          settle_steps=7)
+    assert selected._pixel_rollout_options() == {
+        "seconds": 0.37, "rest_z": selected.rest_z}
+
+    class PlaceholderData:
+        def replace(self, **values):
+            return values
+
+    values = selected._pixel_initial_state(PlaceholderData(), np)
+    assert values["qpos"].shape == (2, selected._cpu.model.nq)
+    assert values["qvel"].shape == (2, selected._cpu.model.nv)
+    assert np.array_equal(values["qpos"][0], np.asarray(selected._d0.qpos))
+    assert np.array_equal(values["qvel"][0], np.asarray(selected._d0.qvel))

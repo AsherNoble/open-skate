@@ -7,27 +7,13 @@ import cv2
 import numpy as np
 import pytest
 
-from opensk.pose.render import SceneRenderer
+from opensk.pose.render import SceneRenderer, gl_backend_unavailable
 from opensk.sim.appearance import APPEARANCE_PRESETS
 from opensk.sim.core import SkateSim
 from opensk.sim.model.parks import PARKS
 
 
 GOLDEN = Path(__file__).with_name("golden")
-
-
-def _gl_backend_unavailable(exc: Exception) -> bool:
-    """Recognise only concrete context-creation failures, never render bugs."""
-    kind = (type(exc).__module__, type(exc).__name__)
-    message = str(exc).lower()
-    known = {
-        ("mujoco.cgl.cgl", "CGLError"): ("invalid coregraphics connection",),
-        ("mujoco", "FatalError"): (
-            "an opengl platform library has not been loaded",),
-        ("OpenGL.raw.EGL._errors", "EGLError"): (
-            "egl_not_initialized", "egl_bad_display"),
-    }
-    return kind in known and any(token in message for token in known[kind])
 
 
 def _render(name: str, park: str = "plaza") -> tuple[np.ndarray, np.ndarray]:
@@ -38,13 +24,13 @@ def _render(name: str, park: str = "plaza") -> tuple[np.ndarray, np.ndarray]:
         renderer = SceneRenderer.for_mode(sim, "training")
         return renderer.render(), renderer.board_pixels()
     except Exception as exc:
-        if _gl_backend_unavailable(exc):
+        if gl_backend_unavailable(exc):
             pytest.skip(f"MuJoCo GL backend unavailable: {exc}")
         raise
 
 
 def test_unrelated_renderer_errors_cannot_be_classified_as_gl_unavailable():
-    assert not _gl_backend_unavailable(RuntimeError("renderer implementation bug"))
+    assert not gl_backend_unavailable(RuntimeError("renderer implementation bug"))
 
 
 def test_renderer_implementation_errors_are_raised_not_skipped(monkeypatch):
