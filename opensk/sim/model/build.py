@@ -16,6 +16,7 @@ Breaking any of these still runs fine on CPU and silently fails to port.
 from __future__ import annotations
 
 import math
+import xml.etree.ElementTree as ET
 
 from ..appearance import (DEFAULT_APPEARANCE, AppearancePreset, resolve_appearance,
                           rgb, xyz)
@@ -376,11 +377,39 @@ def _sol(p: SkateParams) -> str:
             f'{p.contact_solimp_width:.6f}"')
 
 
+_VISUAL_PREFIXES = ("vis_", "boardfx_", "hw_", "parkvis_", "fx_")
+
+
+def _physics_only(xml: str) -> str:
+    """Remove all render state while preserving physical element order/values."""
+    root = ET.fromstring(xml)
+    for node in list(root):
+        if node.tag in {"asset", "visual"}:
+            root.remove(node)
+    for parent in list(root.iter()):
+        for child in list(parent):
+            name = child.attrib.get("name", "")
+            if child.tag == "geom" and name.startswith(_VISUAL_PREFIXES):
+                parent.remove(child)
+            elif child.tag == "light":
+                parent.remove(child)
+            elif child.tag == "body" and name == "cam_mount":
+                parent.remove(child)
+    for geom in root.iter("geom"):
+        # Material and RGBA are renderer inputs. Assets have been removed, so
+        # contact-bearing geoms must not retain dangling material references.
+        geom.attrib.pop("material", None)
+        geom.attrib.pop("rgba", None)
+    root.attrib["model"] = "open_skate_physics"
+    return ET.tostring(root, encoding="unicode")
+
+
 def build_scene(p: SkateParams, park: str = FLAT_PARK,
-                appearance: str | AppearancePreset = DEFAULT_APPEARANCE) -> str:
-    """Full MJCF document: physics plus one visual-only appearance preset."""
+                appearance: str | AppearancePreset = DEFAULT_APPEARANCE,
+                *, visuals: bool = True) -> str:
+    """Full MJCF document, optionally stripped to physics for pose rollouts."""
     a = resolve_appearance(appearance)
-    return f"""<mujoco model="open_skate_{a.name}">
+    xml = f"""<mujoco model="open_skate_{a.name}">
   <compiler angle="degree" autolimits="true"/>
   <option timestep="{p.timestep:.6f}" gravity="0 0 -{p.gravity:.6f}"
           integrator="implicitfast" solver="Newton" cone="pyramidal"
@@ -455,17 +484,17 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK,
          camera from `sim/camera.py` and ignores this one, but MJX's batch
          renderer can only render cameras that exist in the model, and its
          pose is written into `cam_xpos`/`cam_xmat` per world. The fovy is the
-         fitted vertical field of view so both paths frame the board alike. -->
+         fitted vertical field of view so both paths frame the board alike.
          The resolution is NOT optional and NOT cosmetic: MJX's batch
          renderer takes its image size from the CAMERA, not from
          `vis.global_.offwidth/offheight`, and an unset resolution renders
-         1x1 images. That failure is invisible in every summary statistic --
+         1x1 images. That failure is invisible in every summary statistic:
          a 1x1 render still produces well-formed frames at a plausible rate.
 
          The camera rides a MOCAP body. Writing `cam_xpos`/`cam_xmat` directly
          does not work: those are OUTPUTS, recomputed from the model every time
          kinematics runs, so a chase camera written that way silently reverts
-         to its MJCF pose. Measured -- the board was in frame 0 of every
+         to its MJCF pose. Measured: the board was in frame 0 of every
          episode and in the last frame of 3%, including episodes that never
          moved 2 m. Mocap pose is an INPUT and survives. -->
     <body name="cam_mount" mocap="true" pos="0 0 1">
@@ -479,3 +508,4 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK,
   </worldbody>
 </mujoco>
 """
+    return xml if visuals else _physics_only(xml)

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import xml.etree.ElementTree as ET
 
 import mujoco
@@ -13,6 +14,7 @@ from opensk.sim.core import SkateSim
 from opensk.sim.model.build import build_scene
 from opensk.sim.model.parks import PARKS
 from opensk.sim.params import SkateParams
+from opensk.sim.touch import TouchModel
 
 
 VISUAL_PREFIXES = ("vis_", "boardfx_", "hw_", "parkvis_", "fx_")
@@ -129,3 +131,73 @@ def test_training_camera_resolution_and_projection_stay_fitted():
         cam_id = sim.model.camera("chase").id
         assert tuple(sim.model.cam_resolution[cam_id]) == (64, 128)
         assert sim.model.cam_fovy[cam_id] == pytest.approx(params.cam_fov_deg)
+
+
+def _baseline_trajectory(park: str, *, visuals: bool = True) -> np.ndarray:
+    sim = SkateSim(park=PARKS[park], visuals=visuals)
+    sim.reset(seed=17, speed=2.5)
+    rows = []
+    for i in range(1200):
+        if i % 240 < 70:
+            sim.apply_force([13.0, -21.0, -47.0],
+                            sim.body_point([-0.29, 0.035, 0.006]))
+        sim.step()
+        rows.append(np.concatenate((sim.data.qpos.copy(), sim.data.qvel.copy())))
+    return np.stack(rows)
+
+
+@pytest.mark.parametrize("park, expected", [
+    ("flat", "73a9c011bc2de3a986a1e8da4e0e8d755835a8a927969bae82b04af7e2ba507a"),
+    ("sls", "2dca65616e8d65cf467468092be2b24a8f31e1dd7ff46c53b864468bb27ca8a9"),
+])
+def test_pre_visual_direction_trajectories_remain_bit_identical(park, expected):
+    trajectory = _baseline_trajectory(park)
+    assert hashlib.sha256(trajectory.tobytes()).hexdigest() == expected
+    assert np.array_equal(trajectory, _baseline_trajectory(park, visuals=False))
+
+
+def _review_collision_hash(park: str) -> str:
+    sim = SkateSim(park=PARKS[park])
+    physical = []
+    for gid in range(sim.model.ngeom):
+        name = sim.model.geom(gid).name
+        if _is_visual(name):
+            continue
+        physical.append((
+            name, int(sim.model.geom_type[gid]), sim.model.geom_size[gid].tolist(),
+            sim.model.geom_pos[gid].tolist(), sim.model.geom_quat[gid].tolist(),
+            sim.model.geom_friction[gid].tolist(),
+            int(sim.model.geom_contype[gid]),
+            int(sim.model.geom_conaffinity[gid]),
+        ))
+    payload = json.dumps(physical, separators=(",", ":"), sort_keys=True)
+    return hashlib.sha256(payload.encode()).hexdigest()
+
+
+@pytest.mark.parametrize("park, expected", [
+    ("flat", "3f6f9b6c2154e8133890411bb825c3aa72538388662d038540f92c60ac9ef4a9"),
+    ("sls", "17ae94e27e2dbce4e3c300f26261024d8bf493b73b7b730ac33bd0681b172212"),
+])
+def test_collision_signatures_remain_unchanged(park, expected):
+    assert _review_collision_hash(park) == expected
+
+
+def _touch_ray_signature(*, visuals: bool) -> tuple[str, list]:
+    sim = SkateSim(visuals=visuals)
+    sim.reset(seed=0)
+    touch = TouchModel(sim)
+    rays = []
+    for x in np.linspace(0.2, 0.8, 7):
+        for y in np.linspace(0.25, 0.9, 14):
+            kind, hit = touch.cast(float(x), float(y))
+            rays.append((str(kind), None if hit is None else np.asarray(hit).tolist()))
+    payload = json.dumps(rays, separators=(",", ":"))
+    return hashlib.sha256(payload.encode()).hexdigest(), rays
+
+
+def test_touch_rays_are_unchanged_and_ignore_visual_geometry():
+    full_hash, full = _touch_ray_signature(visuals=True)
+    slim_hash, slim = _touch_ray_signature(visuals=False)
+    assert full_hash == "bdf3ca9498387dbf3e58e4a4717a9b5548dd949bcb0a1422835f2c79180a802f"
+    assert slim_hash == full_hash
+    assert slim == full

@@ -25,7 +25,7 @@ import numpy as np
 
 # Bumped whenever the stored layout changes meaning. A reader that finds a
 # version it does not know refuses the shard rather than misinterpreting it.
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 
 
 @dataclass(frozen=True)
@@ -40,6 +40,8 @@ class Shard:
     displacement: np.ndarray  # (B,)
     valid: np.ndarray         # (B,) bool
     source: str               # "sim" or "device"
+    park: str                 # collision environment used for every episode
+    appearance: str           # RGB preset used for every episode
     rgb: np.ndarray | None = None   # (B, F, H, W, 3) uint8, when rendered
 
     def __len__(self) -> int:
@@ -54,7 +56,8 @@ class Shard:
         """
         k = np.asarray(self.valid, dtype=bool)
         return Shard(*[np.asarray(getattr(self, n))[k] for n in _ARRAYS],
-                     source=self.source,
+                     source=self.source, park=self.park,
+                     appearance=self.appearance,
                      rgb=None if self.rgb is None else np.asarray(self.rgb)[k])
 
     def frames_float(self) -> np.ndarray:
@@ -68,7 +71,8 @@ _ARRAYS = ("actions", "pos", "quat", "roll_deg", "yaw_deg", "peak_height",
            "air_s", "displacement", "valid")
 
 
-def save(path, actions, episodes, source: str = "sim") -> pathlib.Path:
+def save(path, actions, episodes, source: str = "sim", *,
+         park: str, appearance: str) -> pathlib.Path:
     """Write one batch of episodes as a shard. Returns the path written."""
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -83,7 +87,8 @@ def save(path, actions, episodes, source: str = "sim") -> pathlib.Path:
         data["rgb"] = np.clip(np.asarray(rgb) * 255.0 + 0.5, 0, 255
                               ).astype(np.uint8)
     data["meta"] = np.frombuffer(
-        json.dumps({"version": FORMAT_VERSION, "source": source}).encode(),
+        json.dumps({"version": FORMAT_VERSION, "source": source,
+                    "park": park, "appearance": appearance}).encode(),
         dtype=np.uint8)
     np.savez_compressed(path, **data)
     return path
@@ -97,6 +102,7 @@ def load(path) -> Shard:
                 f"{path}: format version {meta['version']}, expected "
                 f"{FORMAT_VERSION}. Refusing to guess at the layout.")
         return Shard(*[z[n] for n in _ARRAYS], source=meta["source"],
+                     park=meta["park"], appearance=meta["appearance"],
                      rgb=z["rgb"] if "rgb" in z.files else None)
 
 
@@ -119,7 +125,8 @@ def collect(env, n_episodes: int, *, batch: int = 1024, out=None,
         n = min(batch, n_episodes - done)
         actions = env.sample_actions(n, seed=seed + i)
         episodes = env.step(actions)
-        paths.append(save(out / f"shard_{i:05d}.npz", actions, episodes))
+        paths.append(save(out / f"shard_{i:05d}.npz", actions, episodes,
+                          park=env.park_name, appearance=env.appearance))
         kept = int(np.asarray(episodes.valid).sum())
         if verbose:
             print(f"shard {i}: {n} episodes, {kept} physical", flush=True)

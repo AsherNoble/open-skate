@@ -16,15 +16,35 @@ from opensk.sim.model.parks import PARKS
 GOLDEN = Path(__file__).with_name("golden")
 
 
+def _gl_backend_unavailable(exc: Exception) -> bool:
+    """Recognise only concrete context-creation failures, never render bugs."""
+    kind = (type(exc).__module__, type(exc).__name__)
+    message = str(exc).lower()
+    known = {
+        ("mujoco.cgl.cgl", "CGLError"): ("invalid coregraphics connection",),
+        ("mujoco", "FatalError"): (
+            "an opengl platform library has not been loaded",),
+        ("OpenGL.raw.EGL._errors", "EGLError"): (
+            "egl_not_initialized", "egl_bad_display"),
+    }
+    return kind in known and any(token in message for token in known[kind])
+
+
 def _render(name: str) -> tuple[np.ndarray, np.ndarray]:
     sim = SkateSim(park=PARKS["plaza"], appearance=name)
     sim.reset(seed=0)
     sim.step(400)
     try:
         renderer = SceneRenderer.for_mode(sim, "training")
-    except Exception as exc:  # headless hosts without EGL/CGL
-        pytest.skip(f"MuJoCo RGB context unavailable: {exc}")
+    except Exception as exc:
+        if _gl_backend_unavailable(exc):
+            pytest.skip(f"MuJoCo GL backend unavailable: {exc}")
+        raise
     return renderer.render(), renderer.board_pixels()
+
+
+def test_unrelated_renderer_errors_cannot_be_classified_as_gl_unavailable():
+    assert not _gl_backend_unavailable(RuntimeError("renderer implementation bug"))
 
 
 @pytest.mark.parametrize("appearance", APPEARANCE_PRESETS)

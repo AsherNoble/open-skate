@@ -12,6 +12,7 @@ pytest.importorskip("mujoco.mjx")
 
 from opensk.rl.action import action_dim, decode, to_recipe
 from opensk.sim.gesture_spec import X_BOUND_MIN, Y_BOUND_MAX, Y_BOUND_MIN
+from opensk.sim.model.parks import PARKS
 
 
 def test_every_action_decodes_to_a_gesture_the_phone_can_execute():
@@ -87,3 +88,56 @@ def test_unstable_episodes_are_reported_not_hidden(env):
         physical = (np.isfinite(peak[i]) and np.isfinite(disp[i])
                     and peak[i] < 3.0 and disp[i] < 40.0)
         assert bool(valid[i]) == physical
+
+
+@pytest.mark.parametrize("park", PARKS)
+def test_pose_environment_uses_selected_park_without_rgb_geometry(park):
+    from opensk.rl.env import GestureEnv
+
+    selected = GestureEnv(park=park, appearance="overcast", settle_steps=0)
+    names = {selected._cpu.model.geom(i).name
+             for i in range(selected._cpu.model.ngeom)}
+    assert selected.park_name == park
+    assert selected.appearance == "overcast"
+    assert not any(name.startswith(("vis_", "boardfx_", "hw_", "parkvis_", "fx_"))
+                   for name in names)
+    if park == "plaza":
+        assert "plaza_ledge" in names and "contest_flat" not in names
+    elif park == "sls":
+        assert "contest_flat" in names and "plaza_ledge" not in names
+    else:
+        assert names & {"ground"} and "contest_flat" not in names
+
+
+def test_pixel_physics_and_render_models_use_the_same_selected_park():
+    from opensk.rl.env import GestureEnv
+
+    selected = GestureEnv(pixels=True, batch=1, park="plaza",
+                          appearance="indoor", settle_steps=0)
+    rendered = selected._make_pixel_model()
+
+    def physical_names(model):
+        prefixes = ("vis_", "boardfx_", "hw_", "parkvis_", "fx_")
+        return {model.geom(i).name for i in range(model.ngeom)
+                if not model.geom(i).name.startswith(prefixes)}
+
+    assert physical_names(selected._cpu.model) == physical_names(rendered)
+    assert "plaza_ledge" in physical_names(rendered)
+    assert rendered.camera("chase").id >= 0
+
+
+def test_every_pixel_park_appearance_model_compiles_without_warp():
+    """Validate the exact model path even where the Warp renderer is absent."""
+    from opensk.rl.env import GestureEnv
+    from opensk.sim.appearance import APPEARANCE_PRESETS
+    from opensk.sim.params import SkateParams
+
+    for park_name, park in PARKS.items():
+        for appearance in APPEARANCE_PRESETS:
+            selected = GestureEnv.__new__(GestureEnv)
+            selected.params = SkateParams()
+            selected.park_name = park_name
+            selected.park = park
+            selected.appearance = appearance
+            model = selected._make_pixel_model()
+            assert tuple(model.cam_resolution[model.camera("chase").id]) == (64, 128)

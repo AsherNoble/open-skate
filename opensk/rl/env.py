@@ -24,6 +24,8 @@ import numpy as np
 from ..mjx import gesture as g
 from ..mjx.rollout import EPISODE_SECONDS, episode_length, frame_indices, rollout
 from ..mjx.rollout_batched import frames_and_substeps as _frames_and_substeps
+from ..sim.appearance import resolve_appearance
+from ..sim.model.parks import PARKS
 from ..sim.params import SkateParams
 from .action import action_dim, decode
 
@@ -120,7 +122,7 @@ class GestureEnv:
     def __init__(self, params: SkateParams | None = None, *, n_slots: int = 2,
                  seconds: float = EPISODE_SECONDS, settle_steps: int = 200,
                  pixels: bool = False, batch: int | None = None,
-                 appearance: str = "day"):
+                 park: str = "flat", appearance: str = "day"):
         """`pixels=True` renders frames, and needs `batch` fixed up front.
 
         Rendering forces a different nesting. The pose-only path is env-major
@@ -145,8 +147,16 @@ class GestureEnv:
         self.n_steps = episode_length(self.params, seconds)
         self.frames = frame_indices(self.n_steps, self.params)
 
-        self.appearance = appearance
-        mx, d0, cpu = make_mjx(self.params, appearance=appearance)
+        if park not in PARKS:
+            choices = ", ".join(PARKS)
+            raise ValueError(f"unknown park {park!r}; choose one of: {choices}")
+        self.park_name = park
+        self.park = PARKS[park]
+        self.appearance = resolve_appearance(appearance).name
+        # Pixel environments need the RGB geometry in both CPU and Warp model
+        # so geom ids agree. Pose-only rollouts compile collision geometry only.
+        mx, d0, cpu = make_mjx(
+            self.params, self.park, appearance=self.appearance, visuals=pixels)
         step = jax.jit(lambda dd: mjx.step(mx, dd))
         for _ in range(settle_steps):     # the board settles before every episode
             d0 = step(d0)
@@ -198,15 +208,12 @@ class GestureEnv:
         """Batch-major variant: one wide `Data`, rendered outside every vmap."""
         import jax
         import jax.numpy as jnp
-        import mujoco
         from mujoco import mjx
 
         from ..mjx.rollout_batched import rollout_batched
-        from ..sim.model.build import FLAT_PARK, build_scene
-
         p, n_slots, batch = self.params, self.n_slots, self.batch
-        mjm = mujoco.MjModel.from_xml_string(
-            build_scene(p, FLAT_PARK, self.appearance))
+        mjm = self._make_pixel_model()
+        import mujoco
         cam_id = mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_CAMERA, "chase")
         # The Warp backend preallocates contact buffers and DISCARDS contacts
         # past them, printing a warning and carrying on -- a board partly not
@@ -259,6 +266,19 @@ class GestureEnv:
 
         self._d0_pixel = d0
         return jax.jit(go)
+
+    def _make_pixel_model(self):
+        """Compile the exact park/appearance pair used by pixel rollouts.
+
+        Kept separate from the Warp context so every combination can be
+        validated locally on hosts without a supported Warp renderer.
+        """
+        import mujoco
+
+        from ..sim.model.build import build_scene
+
+        return mujoco.MjModel.from_xml_string(
+            build_scene(self.params, self.park, self.appearance))
 
     def step(self, actions) -> Episodes:
         """(B, action_dim) unbounded reals -> a batch of rollouts.

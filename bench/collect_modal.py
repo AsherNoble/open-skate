@@ -6,7 +6,10 @@ Everything so far exercised the pieces from a benchmark script. This drives
 the last link between "the renderer works" and "a world model can be trained
 on this".
 
-    modal run bench/collect_modal.py --batch 64
+    modal run bench/collect_modal.py --batch 64 --park plaza --appearance day
+
+This file only defines the remote collector. Importing or testing it does not
+launch Modal; a remote job starts only through the explicit command above.
 """
 from __future__ import annotations
 
@@ -29,7 +32,7 @@ image = (
 
 
 @app.function(image=image, gpu="A10G", timeout=3600, memory=32768)
-def collect(batch: int) -> dict:
+def collect(batch: int, park: str, appearance: str) -> dict:
     import time
 
     import numpy as np
@@ -37,7 +40,8 @@ def collect(batch: int) -> dict:
     from opensk.rl import store
     from opensk.rl.env import GestureEnv
 
-    env = GestureEnv(pixels=True, batch=batch)
+    env = GestureEnv(pixels=True, batch=batch, park=park,
+                     appearance=appearance)
     actions = env.sample_actions(batch, seed=11)
 
     t = time.perf_counter()
@@ -47,7 +51,8 @@ def collect(batch: int) -> dict:
     ep = env.step(actions)
     run_s = time.perf_counter() - t
 
-    path = store.save("/tmp/shard_00000.npz", actions, ep)
+    path = store.save("/tmp/shard_00000.npz", actions, ep,
+                      park=env.park_name, appearance=env.appearance)
     back = store.load(path)
     kept = back.filtered()
 
@@ -56,14 +61,17 @@ def collect(batch: int) -> dict:
     # split across frames rather than episodes would leak the answer.
     held_actions = env.sample_actions(batch, seed=99)
     held = env.step(held_actions)
-    held_path = store.save("/tmp/shard_00001.npz", held_actions, held)
+    held_path = store.save("/tmp/shard_00001.npz", held_actions, held,
+                           park=env.park_name, appearance=env.appearance)
 
     grey = np.asarray(ep.rgb).mean(axis=-1)
     bg = np.median(grey, axis=(2, 3), keepdims=True)
     visible = (np.abs(grey - bg) > 0.05).mean(axis=(2, 3)) > 0.005
 
     res = {
-        "batch": batch, "compile_s": compile_s, "run_s": run_s,
+        "batch": batch, "park": env.park_name,
+        "appearance": env.appearance,
+        "compile_s": compile_s, "run_s": run_s,
         "episodes_per_hour": batch / run_s * 3600.0,
         "rgb_shape": list(np.asarray(ep.rgb).shape),
         "shard_bytes": Path(path).stat().st_size,
@@ -124,8 +132,9 @@ def collect(batch: int) -> dict:
 
 
 @app.local_entrypoint()
-def main(batch: int = 64, out: str = "results/collect_gpu.json"):
-    res = collect.remote(batch)
+def main(batch: int = 64, park: str = "flat", appearance: str = "day",
+         out: str = "results/collect_gpu.json"):
+    res = collect.remote(batch, park, appearance)
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     npz = res.pop("sample_npz", None)
     Path(out).write_text(json.dumps(res, indent=2))

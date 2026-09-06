@@ -31,12 +31,14 @@ _SPIN_JOINTS = tuple(f"{w}_spin" for w in WHEELS)
 
 class SkateSim:
     def __init__(self, params: SkateParams | None = None, park: str = FLAT_PARK,
-                 appearance: str | AppearancePreset = DEFAULT_APPEARANCE):
+                 appearance: str | AppearancePreset = DEFAULT_APPEARANCE,
+                 *, visuals: bool = True):
         self.params = params or SkateParams()
         self.park = park
         self.appearance = resolve_appearance(appearance)
+        self.visuals = visuals
         self.model = mujoco.MjModel.from_xml_string(
-            build_scene(self.params, park, self.appearance))
+            build_scene(self.params, park, self.appearance, visuals=visuals))
         self.data = mujoco.MjData(self.model)
         self._rng = np.random.default_rng(0)
 

@@ -11,6 +11,10 @@ import pytest
 from opensk.rl import store
 
 
+def _save(path, actions, episodes):
+    return store.save(path, actions, episodes, park="flat", appearance="day")
+
+
 def _episodes(b=5, f=68):
     from opensk.rl.env import Episodes
     rng = np.random.default_rng(0)
@@ -24,16 +28,31 @@ def _episodes(b=5, f=68):
 def test_round_trip_preserves_shapes_and_values(tmp_path):
     ep = _episodes()
     actions = np.random.default_rng(1).normal(size=(5, 17))
-    got = store.load(store.save(tmp_path / "s.npz", actions, ep))
+    got = store.load(_save(tmp_path / "s.npz", actions, ep))
     assert len(got) == 5
     assert got.pos.shape == (5, 68, 3) and got.quat.shape == (5, 68, 4)
     assert np.allclose(got.actions, actions, atol=1e-6)
     assert np.array_equal(got.valid, np.asarray(ep.valid))
+    assert got.park == "flat" and got.appearance == "day"
+
+
+def test_every_saved_shard_requires_domain_metadata(tmp_path):
+    with pytest.raises(TypeError, match="park"):
+        store.save(tmp_path / "s.npz", np.zeros((5, 17)), _episodes())
+
+
+def test_round_trip_preserves_explicit_domain_metadata(tmp_path):
+    path = store.save(tmp_path / "s.npz", np.zeros((5, 17)), _episodes(),
+                      park="sls", appearance="overcast")
+    shard = store.load(path)
+    assert (shard.park, shard.appearance) == ("sls", "overcast")
+    assert (shard.filtered().park, shard.filtered().appearance) == (
+        "sls", "overcast")
 
 
 def test_filtering_keeps_only_physical_episodes(tmp_path):
-    got = store.load(store.save(tmp_path / "s.npz",
-                                np.zeros((5, 17)), _episodes())).filtered()
+    got = store.load(_save(tmp_path / "s.npz",
+                           np.zeros((5, 17)), _episodes())).filtered()
     assert len(got) == 3
     assert got.valid.all()
 
@@ -43,7 +62,7 @@ def test_a_shard_from_an_unknown_format_is_refused(tmp_path):
     import json
 
     p = tmp_path / "future.npz"
-    store.save(p, np.zeros((5, 17)), _episodes())
+    _save(p, np.zeros((5, 17)), _episodes())
     with np.load(p) as z:
         data = {k: z[k] for k in z.files}
     data["meta"] = np.frombuffer(
@@ -56,8 +75,8 @@ def test_a_shard_from_an_unknown_format_is_refused(tmp_path):
 
 def test_shards_iterate_in_a_reproducible_order(tmp_path):
     for i in (2, 0, 1):
-        store.save(tmp_path / f"shard_{i:05d}.npz",
-                   np.full((5, 17), float(i)), _episodes())
+        _save(tmp_path / f"shard_{i:05d}.npz",
+              np.full((5, 17), float(i)), _episodes())
     order = [float(s.actions[0, 0]) for s in store.iter_shards(tmp_path)]
     assert order == [0.0, 1.0, 2.0]
 
@@ -73,7 +92,7 @@ def test_frames_round_trip_through_uint8_without_visible_loss(tmp_path):
                   roll_deg=np.zeros(4), yaw_deg=np.zeros(4),
                   peak_height=np.zeros(4), air_s=np.zeros(4),
                   displacement=np.zeros(4), valid=np.ones(4, bool), rgb=frames)
-    got = store.load(store.save(tmp_path / "s.npz", np.zeros((4, 17)), ep))
+    got = store.load(_save(tmp_path / "s.npz", np.zeros((4, 17)), ep))
     assert got.rgb is not None and got.rgb.dtype == np.uint8
     assert np.abs(got.frames_float() - frames).max() < 1.0 / 255.0
 
@@ -91,8 +110,8 @@ def test_filtering_keeps_frames_aligned_with_episodes(tmp_path):
                   peak_height=np.zeros(5), air_s=np.zeros(5),
                   displacement=np.zeros(5),
                   valid=np.array([True, False, True, True, False]), rgb=frames)
-    got = store.load(store.save(tmp_path / "s.npz",
-                                np.zeros((5, 17)), ep)).filtered()
+    got = store.load(_save(tmp_path / "s.npz",
+                           np.zeros((5, 17)), ep)).filtered()
     assert len(got) == 3
     assert [int(got.rgb[i].flat[0]) for i in range(3)] == [0, 2, 3]
 
@@ -116,8 +135,8 @@ def test_the_world_model_refuses_an_underdetermined_fit(tmp_path):
                       roll_deg=np.zeros(2), yaw_deg=np.zeros(2),
                       peak_height=np.zeros(2), air_s=np.zeros(2),
                       displacement=np.zeros(2), valid=np.ones(2, bool), rgb=f)
-        return store.load(store.save(tmp_path / f"s{seed}.npz",
-                                     np.zeros((2, 17)), ep))
+        return store.load(_save(tmp_path / f"s{seed}.npz",
+                                np.zeros((2, 17)), ep))
 
     with pytest.raises(ValueError, match="underdetermined"):
         evaluate(shard(0), shard(1), downsample=1)
