@@ -108,7 +108,7 @@ INDOOR = AppearancePreset(
     fill_dir=(-0.35, -0.18, -1.0),
     environment=f"""
     <geom name="fx_indoor_backdrop" type="box" size="0.12 12 3.5"
-          pos="15 0 3.5" {_VISUAL} material="mat_environment"/>
+          pos="3.4 0 3.5" {_VISUAL} material="mat_environment"/>
     <geom name="fx_indoor_left_wall" type="box" size="16 0.10 3.5"
           pos="2 9 3.5" {_VISUAL} material="mat_environment"/>
     <geom name="fx_indoor_right_wall" type="box" size="16 0.10 3.5"

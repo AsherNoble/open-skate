@@ -200,16 +200,16 @@ def plaza_park() -> str:
     park = _ground()
 
     # Low ledge on camera-left, including one muted powder-coated edge.
-    park += _box("plaza_ledge", "0.72 0.36 0.12", "1.62 0.72 0.12",
+    park += _box("plaza_ledge", "0.72 0.36 0.12", "1.62 0.36 0.12",
                  style=_LEDGE)
     park += _accent_box("plaza_ledge_edge", "0.72 0.014 0.005",
-                        "1.62 0.374 0.245")
+                        "1.62 0.014 0.245")
 
     # Flat bar on camera-right, with physical capsule uprights.  Capsules are
     # both more legible in RGB and portable to MJX contacts.
-    park += _capsule("plaza_rail", "1.05 -0.66 0.27 2.18 -0.66 0.27", 0.024)
-    park += _capsule("plaza_rail_post_a", "1.17 -0.66 0.03 1.17 -0.66 0.27", 0.020)
-    park += _capsule("plaza_rail_post_b", "2.06 -0.66 0.03 2.06 -0.66 0.27", 0.020)
+    park += _capsule("plaza_rail", "1.05 -0.30 0.27 2.18 -0.30 0.27", 0.024)
+    park += _capsule("plaza_rail_post_a", "1.17 -0.30 0.03 1.17 -0.30 0.27", 0.020)
+    park += _capsule("plaza_rail_post_b", "2.06 -0.30 0.03 2.06 -0.30 0.27", 0.020)
 
     # A bank beyond the first two modules.  One box is both a predictable MJX
     # contact surface and a clean, modular silhouette.
@@ -217,7 +217,7 @@ def plaza_park() -> str:
     bank_slope = math.degrees(math.atan2(bank_height, bank_run))
     park += _box("plaza_bank", f"{math.hypot(bank_run, bank_height) / 2:.3f} 0.62 0.055",
                  "2.75 0.88 0.210", euler=f"0 {-bank_slope:.2f} 0")
-    park += _accent_box("plaza_bank_lip", "0.018 0.72 0.006",
+    park += _accent_box("plaza_bank_lip", "0.018 0.62 0.006",
                         "3.355 0.88 0.426", secondary=True)
 
     # Three ascending steps on the opposite side.  Unlike the legacy SLS set,

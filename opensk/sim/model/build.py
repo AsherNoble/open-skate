@@ -388,7 +388,7 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK,
   <visual>
     <!-- Low camera fill plus world-space key/fill lights: form and contact
          shadows stay legible without the headlight flattening everything. -->
-    <headlight ambient="{rgb(a.ambient)}" diffuse="0.120 0.123 0.128"
+    <headlight ambient="{rgb(a.ambient)}" diffuse="0.195 0.198 0.205"
                specular="0.015 0.015 0.015"/>
     <map znear="0.01" zfar="80" shadowclip="10" shadowscale="0.85"/>
     <quality shadowsize="4096" offsamples="8" numslices="28" numstacks="18"/>

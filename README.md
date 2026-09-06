@@ -25,6 +25,25 @@ same trick on the phone. Everything here is arranged around measuring that.
   cylinders), box/plane/capsule collision geometry only, Newton + implicitfast + condim 3.
 - **`sim/`, `game/` and `fit/objective.py` are pure** — no wall clock, no rendering, no
   I/O, fixed timestep, seeded RNG. Rollouts are bitwise reproducible.
+- **RGB geometry cannot affect the board.** Render-only deck skins, hardware and park
+  copies have zero mass, no collision affinity and their own render groups. Hidden
+  plane/box/capsule collision geometry remains authoritative, and silhouette fitting
+  renders the deck outline alone.
+
+## Appearance and local previews
+
+`SkateSim(appearance=...)` and pixel `GestureEnv(appearance=...)` accept `"day"`,
+`"indoor"` or `"overcast"`. The presets change procedural materials, sky and lights;
+they do not change `SkateParams`, the camera, collision geometry or trajectories.
+Training remains 64x128. Render all three presets at a device-like 375x812 locally:
+
+```bash
+.venv/bin/python -m opensk.pose.preview --output-dir results/visual_direction
+```
+
+Use `--mode training` to exercise the exact training raster, or `--park flat|plaza|sls`
+to choose collision geometry. The default compact plaza is composed for the existing
+fitted portrait chase camera; no projection or camera parameter is adjusted.
 
 ## Status
 
