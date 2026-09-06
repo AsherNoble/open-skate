@@ -52,8 +52,28 @@ def gesture_arrays(recipe: dict, n_slots: int = 2, xp=np):
         if real and i < len(recipe["gestures"]) - 1:
             delays = recipe.get("delays") or [0.0]
             t += float(dur) + float(delays[min(i, len(delays) - 1)])
+    n_real = min(len(recipe["gestures"]), n_slots)
+    if n_real:
+        order = np.argsort(np.asarray(starts[:n_real]), kind="stable")
+        earliest = starts[order[0]]
+        real_pts = [pts[i] for i in order]
+        real_segs = [segs[i] for i in order]
+        real_starts = [starts[i] - earliest for i in order]
+        pts[:n_real], segs[:n_real], starts[:n_real] = (
+            real_pts, real_segs, real_starts)
     return (xp.asarray(np.stack(pts)), xp.asarray(np.stack(segs)),
             xp.asarray(np.asarray(starts)))
+
+
+def gesture_spin(recipe: dict, seg_t, t0, xp=np):
+    """Recipe spin block -> [enabled, absolute start, absolute end]."""
+    from ..sim.gesture_spec import spin_window
+
+    total = float(np.max(np.asarray(t0) + np.asarray(seg_t)[:, -1]))
+    window = spin_window(recipe, total)
+    if window is None:
+        return xp.asarray([0.0, 0.0, 0.0])
+    return xp.asarray([1.0, window[0], window[1]])
 
 
 # The capture window is pre_s 0.5 + window_s 1.8 = 2.3 s, which is what gives
@@ -90,7 +110,7 @@ def make_step_fn(mx, model, params, deck_bid, deck_gids, n_slots: int = 2):
     dt = params.timestep
 
     def step(carry, t):
-        data, fingers, cam, points, seg_t, t0 = carry
+        data, fingers, cam, points, seg_t, t0, spin = carry
         # The camera is updated BEFORE the fingers act, matching the reference
         # loop's order. It lags the board by `cam_follow_tau`, which changes
         # where a mid-gesture screen point lands and so changes the force.
@@ -117,27 +137,35 @@ def make_step_fn(mx, model, params, deck_bid, deck_gids, n_slots: int = 2):
                 FingerState(*[jnp.where(live, a, b)
                               for a, b in zip(st, fingers[s])]))
 
+        spin_live = ((spin[0] > 0.5) & (t >= spin[1]) & (t <= spin[2]))
+        deck_normal = data.xmat[deck_bid].reshape(3, 3)[:, 2]
+        total_torque = total_torque + jnp.where(
+            spin_live, params.spin_torque, 0.0) * deck_normal
+
         xfrc = jnp.zeros_like(data.xfrc_applied)
         xfrc = xfrc.at[deck_bid, :3].set(total_force)
         xfrc = xfrc.at[deck_bid, 3:].set(total_torque)
         data = mjx.step(mx, data.replace(xfrc_applied=xfrc))
         return (data, tuple(new_fingers), (cam_target, cam_yaw),
-                points, seg_t, t0), (data.qpos[:3], data.qpos[3:7])
+                points, seg_t, t0, spin), (data.qpos[:3], data.qpos[3:7])
 
     return step
 
 
 def rollout(mx, model, params, deck_bid, deck_gids, init_data,
-            points, seg_t, t0, n_steps: int, n_slots: int = 2) -> Rollout:
+            points, seg_t, t0, n_steps: int, n_slots: int = 2,
+            spin=None) -> Rollout:
     """Run one episode. `vmap` this over environments to batch it."""
     import jax
     import jax.numpy as jnp
 
     step = make_step_fn(mx, model, params, deck_bid, deck_gids, n_slots)
     fingers = tuple(initial_finger(xp=jnp) for _ in range(n_slots))
+    if spin is None:
+        spin = jnp.zeros(3)
     cam = g.camera_reset(init_data.xpos[deck_bid],
                          g.board_yaw(init_data.qpos[3:7], xp=jnp), params, xp=jnp)
     ts = jnp.arange(n_steps, dtype=float) * params.timestep
     carry, (pos, quat) = jax.lax.scan(
-        step, (init_data, fingers, cam, points, seg_t, t0), ts)
+        step, (init_data, fingers, cam, points, seg_t, t0, spin), ts)
     return Rollout(pos=pos, quat=quat)

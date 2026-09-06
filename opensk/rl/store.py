@@ -25,7 +25,7 @@ import numpy as np
 
 # Bumped whenever the stored layout changes meaning. A reader that finds a
 # version it does not know refuses the shard rather than misinterpreting it.
-FORMAT_VERSION = 2
+FORMAT_VERSION = 3
 
 
 @dataclass(frozen=True)
@@ -121,10 +121,19 @@ def collect(env, n_episodes: int, *, batch: int = 1024, out=None,
     """
     out = pathlib.Path(out or "data/rollouts")
     done, i, paths = 0, 0, []
+    step_batch = env.batch if getattr(env, "pixels", False) else batch
     while done < n_episodes:
-        n = min(batch, n_episodes - done)
-        actions = env.sample_actions(n, seed=seed + i)
-        episodes = env.step(actions)
+        n = min(step_batch, n_episodes - done)
+        # Pixel render contexts have a construction-time world count.  Run a
+        # complete final batch and truncate only what is saved; asking the env
+        # to resize the last call fails after an expensive compilation.
+        run_n = step_batch if getattr(env, "pixels", False) else n
+        run_actions = env.sample_actions(run_n, seed=seed + i)
+        run_episodes = env.step(run_actions)
+        actions = run_actions[:n]
+        episodes = type(run_episodes)(*(
+            None if value is None else np.asarray(value)[:n]
+            for value in run_episodes))
         paths.append(save(out / f"shard_{i:05d}.npz", actions, episodes,
                           park=env.park_name, appearance=env.appearance))
         kept = int(np.asarray(episodes.valid).sum())

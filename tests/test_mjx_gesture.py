@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from opensk.mjx.gesture import (board_yaw, camera_ray, path_position, schedule,
-                                segment_durations_ms)
+                                schedule_slots, segment_durations_ms)
 from opensk.sim.camera import FollowCamera
 from opensk.sim.camera import board_yaw as cpu_board_yaw
 from opensk.sim.gesture_spec import GesturePath
@@ -34,6 +34,15 @@ def test_path_position_matches_cpu():
     assert float(dur) == pytest.approx(cpu.duration)
     for t in np.linspace(0.0, 0.4, 25):
         assert np.allclose(path_position(P, seg_t, t), cpu.position_at(t), atol=0)
+
+
+def test_slot_schedule_reorders_a_negative_start_like_the_device():
+    points = np.array([[[0.2, 0.3], [0.25, 0.35], [0.3, 0.4]],
+                       [[0.8, 0.7], [0.75, 0.65], [0.7, 0.6]]])
+    p, _, starts = schedule_slots(
+        points, np.array([0.1, 0.1]), np.ones(2), np.array([-0.2]))
+    assert starts.tolist() == pytest.approx([0.0, 0.1])
+    assert p[0, 0].tolist() == [0.8, 0.7]
 
 
 def test_camera_ray_matches_cpu():

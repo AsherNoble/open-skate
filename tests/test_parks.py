@@ -36,6 +36,16 @@ def test_board_rests_level_on_the_park():
     assert abs(st.quat[0]) > 0.99, "board did not settle level on the flat"
 
 
+def test_quarter_pipe_lip_connects_to_its_deck():
+    model = mujoco.MjModel.from_xml_string(
+        build_scene(SkateParams(), PARKS["sls"], visuals=False))
+    deck = model.geom("qp_deck").id
+    coping = model.geom("qp_coping").id
+    deck_left_edge = model.geom_pos[deck, 0] - model.geom_size[deck, 0]
+    assert model.geom_pos[coping, 0] == pytest.approx(-13.0 + 1.4)
+    assert deck_left_edge == pytest.approx(model.geom_pos[coping, 0])
+
+
 @pytest.mark.parametrize("x,y,heading,speed,label", [
     (4.0, 0.0, 0.0, 4.0, "stairs"),
     (-9.0, 0.0, np.pi, 5.0, "quarter pipe"),

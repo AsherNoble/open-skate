@@ -188,11 +188,12 @@ def _quarter_pipe(x0: float, y0: float, height: float = 1.4,
                     euler=f"0 {pitch:.2f} 0")
     # Deck behind the lip, and the coping as a capsule (capsules collide with
     # everything under MJX, unlike a cylinder).
+    lip_x = x0 + r
     out += _box("qp_deck", f"1.2 {width / 2:.3f} {height / 2:.3f}",
-                f"{x0 - 1.2:.3f} {y0:.3f} {height / 2:.3f}", style=_PLAZA)
+                f"{lip_x + 1.2:.3f} {y0:.3f} {height / 2:.3f}", style=_PLAZA)
     out += _capsule("qp_coping",
-                    f"{x0:.3f} {y0 - width / 2:.3f} {height:.3f} "
-                    f"{x0:.3f} {y0 + width / 2:.3f} {height:.3f}", 0.035)
+                    f"{lip_x:.3f} {y0 - width / 2:.3f} {height:.3f} "
+                    f"{lip_x:.3f} {y0 + width / 2:.3f} {height:.3f}", 0.035)
     return out
 
 

@@ -27,6 +27,7 @@ def test_every_action_decodes_to_a_gesture_the_phone_can_execute():
             assert 0.05 <= gest["duration"] <= 0.80
             assert 0.3 <= gest["easing_power"] <= 3.0
         assert all(-0.25 <= d <= 0.60 for d in rec["delays"])
+        assert 0.0 <= rec["spin"]["t_start"] <= rec["spin"]["t_end"] <= 1.0
 
 
 def test_decode_is_the_same_under_numpy_and_jax():
@@ -42,6 +43,17 @@ def test_decode_is_the_same_under_numpy_and_jax():
     b = decode(jnp.asarray(v), 2, xp=jnp)
     for x, y in zip(a, b):
         assert np.allclose(np.asarray(x), np.asarray(y), atol=1e-5)
+
+
+def test_policy_action_represents_the_device_spin_hold():
+    v = np.zeros(action_dim(2))
+    v[-3:] = [1.0, -1.0, 1.0]
+    enabled = to_recipe(v)
+    v[-3] = -1.0
+    disabled = to_recipe(v)
+    assert enabled["spin"]["enabled"] is True
+    assert disabled["spin"]["enabled"] is False
+    assert enabled["spin"]["t_start"] < enabled["spin"]["t_end"]
 
 
 @pytest.fixture(scope="module")
@@ -72,6 +84,16 @@ def test_the_same_actions_give_the_same_episodes(env):
                           equal_nan=True)
     assert np.array_equal(np.asarray(first.quat), np.asarray(second.quat),
                           equal_nan=True)
+
+
+def test_spin_gate_changes_the_pose_rollout(env):
+    actions = np.zeros((2, env.action_dim))
+    actions[:, -2:] = [-1.0, 1.0]
+    actions[0, -3] = -10.0
+    actions[1, -3] = 10.0
+    episodes = env.step(actions)
+    assert not np.array_equal(np.asarray(episodes.quat[0]),
+                              np.asarray(episodes.quat[1]))
 
 
 def test_unstable_episodes_are_reported_not_hidden(env):

@@ -103,7 +103,14 @@ def schedule_recipe(recipe: dict) -> list[tuple[float, GesturePath]]:
         out.append((t, path))
         if i < len(gestures) - 1:
             t += path.duration + float(delays[i])
-    return out
+    # The device builds raw starts first, then orders the W3C action slots by
+    # absolute start and shifts the earliest one to zero.  A sufficiently
+    # negative delay can therefore make a later recipe slot execute first.
+    # Starting our clock at zero without this normalisation skips the leading
+    # part of that gesture and is not the action the phone performed.
+    out.sort(key=lambda item: item[0])       # stable, like Python's rig code
+    earliest = out[0][0] if out else 0.0
+    return [(start - earliest, path) for start, path in out]
 
 
 def spin_window(recipe: dict, total: float) -> tuple[float, float] | None:

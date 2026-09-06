@@ -23,7 +23,6 @@ import numpy as np
 
 from ..mjx import gesture as g
 from ..mjx.rollout import EPISODE_SECONDS, episode_length, frame_indices, rollout
-from ..mjx.rollout_batched import frames_and_substeps as _frames_and_substeps
 from ..sim.appearance import resolve_appearance
 from ..sim.model.parks import PARKS
 from ..sim.params import SkateParams
@@ -143,6 +142,8 @@ class GestureEnv:
 
         self.params = params or SkateParams()
         self.n_slots = n_slots
+        self.seconds = float(seconds)
+        self.settle_steps = int(settle_steps)
         self.action_dim = action_dim(n_slots)
         self.n_steps = episode_length(self.params, seconds)
         self.frames = frame_indices(self.n_steps, self.params)
@@ -158,7 +159,7 @@ class GestureEnv:
         mx, d0, cpu = make_mjx(
             self.params, self.park, appearance=self.appearance, visuals=pixels)
         step = jax.jit(lambda dd: mjx.step(mx, dd))
-        for _ in range(settle_steps):     # the board settles before every episode
+        for _ in range(self.settle_steps):  # the board settles before every episode
             d0 = step(d0)
         self._mx, self._d0, self._cpu = mx, d0, cpu
         self.rest_z = float(np.asarray(d0.qpos)[2])
@@ -182,19 +183,14 @@ class GestureEnv:
         deck_gids = sorted(cpu._deck_gids)
 
         def one(vec):
-            points, durations, easings, delays = decode(vec, n_slots, xp=jnp)
-            segs, starts, t = [], [], 0.0
-            for i in range(n_slots):
-                _, seg_t, dur = g.schedule(points[i], durations[i], easings[i], xp=jnp)
-                segs.append(seg_t)
-                starts.append(t)
-                if i < n_slots - 1:
-                    t = t + dur + delays[i]
-            seg_t = jnp.stack(segs)
-            t0 = jnp.stack([jnp.asarray(s, dtype=float) for s in starts])
+            points, durations, easings, delays, spin = decode(
+                vec, n_slots, xp=jnp)
+            points, seg_t, t0 = g.schedule_slots(
+                points, durations, easings, delays, xp=jnp)
+            spin = g.absolute_spin(spin, t0, seg_t, xp=jnp)
 
             r = rollout(mx, cpu.model, p, cpu.deck_bid, deck_gids, d0,
-                        points, seg_t, t0, n_steps, n_slots)
+                        points, seg_t, t0, n_steps, n_slots, spin)
             roll, yaw, peak, air, disp = summarise(
                 r.pos, r.quat, p.timestep, self.rest_z, jnp)
             valid = (jnp.isfinite(peak) & jnp.isfinite(disp) & jnp.isfinite(roll)
@@ -222,11 +218,14 @@ class GestureEnv:
         d0 = jax.vmap(lambda _: mjx.make_data(
             mjm, impl="warp", naconmax=64 * batch, njmax=64 * batch))(
                 jnp.arange(batch))
-        d0 = d0.replace(qpos=jnp.broadcast_to(jnp.array(self._cpu.data.qpos),
-                                              (batch, self._cpu.model.nq)))
-        step = jax.jit(jax.vmap(mjx.step, in_axes=(None, 0)))
-        for _ in range(200):
-            d0 = step(mx, d0)
+        # Start from the exact state already settled by the pose backend.  A
+        # second hard-coded 200-step settle made `settle_steps` ineffective
+        # for pixels and put the two backends at different initial states.
+        d0 = d0.replace(
+            qpos=jnp.broadcast_to(jnp.asarray(self._d0.qpos),
+                                  (batch, self._cpu.model.nq)),
+            qvel=jnp.broadcast_to(jnp.asarray(self._d0.qvel),
+                                  (batch, self._cpu.model.nv)))
 
         # The context owns Warp buffers and deregisters them when collected,
         # so it must outlive every use of its pytree handle.
@@ -244,25 +243,21 @@ class GestureEnv:
         deck_gids = sorted(self._cpu._deck_gids)
 
         def go(vecs, d):
-            points, durations, easings, delays = jax.vmap(
+            points, durations, easings, delays, spin = jax.vmap(
                 lambda v: decode(v, n_slots, xp=jnp))(vecs)
 
             def sched(pts, dur, eas, dly):
-                segs, starts, t = [], [], 0.0
-                for i in range(n_slots):
-                    _, seg_t, d_i = g.schedule(pts[i], dur[i], eas[i], xp=jnp)
-                    segs.append(seg_t)
-                    starts.append(t)
-                    if i < n_slots - 1:
-                        t = t + d_i + dly[i]
-                return jnp.stack(segs), jnp.stack(
-                    [jnp.asarray(x, dtype=float) for x in starts])
+                return g.schedule_slots(pts, dur, eas, dly, xp=jnp)
 
-            seg_t, t0 = jax.vmap(sched)(points, durations, easings, delays)
+            points, seg_t, t0 = jax.vmap(sched)(
+                points, durations, easings, delays)
+            spin = jax.vmap(lambda w, starts, segs: g.absolute_spin(
+                w, starts, segs, xp=jnp))(spin, t0, seg_t)
             return rollout_batched(mx, self._cpu.model, p, self._cpu.deck_bid,
                                    deck_gids, d, points, seg_t, t0,
                                    n_slots=n_slots, render=render,
-                                   cam_id=cam_id)
+                                   cam_id=cam_id, seconds=self.seconds,
+                                   spin=spin, rest_z=self.rest_z)
 
         self._d0_pixel = d0
         return jax.jit(go)
@@ -289,11 +284,15 @@ class GestureEnv:
         """
         import jax.numpy as jnp
 
-        if self._one is None:
-            self._one = self._build_pixel() if self.pixels else self._build()
         a = jnp.asarray(np.asarray(actions, dtype=float))
         if a.ndim == 1:
             a = a[None, :]
+        if self.pixels and a.shape[0] != self.batch:
+            raise ValueError(
+                f"pixels environment is built for batch {self.batch}, "
+                f"got {a.shape[0]} actions; rebuild it for the new size.")
+        if self._one is None:
+            self._one = self._build_pixel() if self.pixels else self._build()
         if self.pixels:
             return self._step_pixels(a)
         pos, quat, roll, yaw, peak, air, disp, valid = self._one(a)
@@ -302,22 +301,15 @@ class GestureEnv:
                         valid=valid)
 
     def _step_pixels(self, a):
-        """Batch-major step. Outcomes are derived on the host from the frames'
-        pose trajectory, so the pixel and pose paths report the same fields."""
-        import jax.numpy as jnp
-
-        if a.shape[0] != self.batch:
-            raise ValueError(
-                f"pixels environment is built for batch {self.batch}, "
-                f"got {a.shape[0]} actions; rebuild it for the new size.")
+        """Batch-major step with physics-rate outcomes from the rollout."""
         r = self._one(a, self._d0_pixel)
         pos = np.asarray(r.pos).transpose(1, 0, 2)      # (B, F, 3)
         quat = np.asarray(r.quat).transpose(1, 0, 2)
-        _, substeps = _frames_and_substeps(self.params)
-        dt_frame = self.params.timestep * substeps
-        rows = [summarise(pos[i], quat[i], dt_frame, self.rest_z, np)
-                for i in range(len(pos))]
-        roll, yaw, peak, air, disp = (np.array(x) for x in zip(*rows))
+        roll = np.asarray(r.roll_deg)
+        yaw = np.asarray(r.yaw_deg)
+        peak = np.asarray(r.peak_height)
+        air = np.asarray(r.air_s)
+        disp = np.asarray(r.displacement)
         valid = (np.isfinite(peak) & np.isfinite(disp) & np.isfinite(roll)
                  & (peak < MAX_PLAUSIBLE_HEIGHT_M)
                  & (disp < MAX_PLAUSIBLE_TRAVEL_M))

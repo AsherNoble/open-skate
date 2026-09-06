@@ -71,6 +71,36 @@ def schedule(points, duration, easing_power, xp=np):
     return points, seg_t, seg_t[-1]
 
 
+def schedule_slots(points, durations, easings, delays, xp=np):
+    """Schedule all slots exactly as the phone does.
+
+    Raw starts follow the recipe's delay chain.  Slots are then stably ordered
+    by absolute start and the earliest start is shifted to zero, which matters
+    when a negative delay is longer than the preceding gesture.
+    """
+    n_slots = points.shape[0]
+    segs, starts, t = [], [], xp.asarray(0.0)
+    for i in range(n_slots):
+        _, seg_t, executed = schedule(
+            points[i], durations[i], easings[i], xp=xp)
+        segs.append(seg_t)
+        starts.append(t)
+        if i < n_slots - 1:
+            t = t + executed + delays[i]
+    seg_t = xp.stack(segs)
+    t0 = xp.stack(starts)
+    # `stable=True` is shared by modern NumPy and JAX and matches the rig's
+    # stable Python sort for simultaneous starts.
+    order = xp.argsort(t0, stable=True)
+    return points[order], seg_t[order], t0[order] - t0[order][0]
+
+
+def absolute_spin(spin, t0, seg_t, xp=np):
+    """Fractional policy spin controls -> absolute rollout times."""
+    total = xp.max(t0 + seg_t[:, -1])
+    return xp.stack([spin[0], spin[1] * total, spin[2] * total])
+
+
 # --- camera ---------------------------------------------------------------
 
 def camera_basis(yaw, pitch_deg, xp=np):

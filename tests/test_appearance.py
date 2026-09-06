@@ -197,9 +197,11 @@ def _review_collision_hash(park: str) -> str:
 
 @pytest.mark.parametrize("park, expected", [
     ("flat", "3f6f9b6c2154e8133890411bb825c3aa72538388662d038540f92c60ac9ef4a9"),
-    ("sls", "17ae94e27e2dbce4e3c300f26261024d8bf493b73b7b730ac33bd0681b172212"),
+    # SLS changed only for the reviewed quarter-pipe topology correction: its
+    # coping and deck now meet the transition's actual high lip.
+    ("sls", "47d6e0e0f27441de5abe3a1c7dd05004e81947a572750cac4af0e52a38987d2c"),
 ])
-def test_collision_signatures_remain_unchanged(park, expected):
+def test_collision_signatures_are_pinned(park, expected):
     assert _review_collision_hash(park) == expected
 
 

@@ -41,6 +41,75 @@ class BatchRollout(NamedTuple):
     quat: np.ndarray    # (F, B, 4)
     rgb: np.ndarray | None    # (F, B, H, W, 3) when rendering, else None
     cam_pos: np.ndarray | None  # (F, B, 3) camera actually used for the render
+    roll_deg: np.ndarray
+    yaw_deg: np.ndarray
+    peak_height: np.ndarray
+    air_s: np.ndarray
+    displacement: np.ndarray
+
+
+class _OutcomeState(NamedTuple):
+    previous_quat: np.ndarray
+    first_pos: np.ndarray
+    roll: np.ndarray
+    yaw: np.ndarray
+    peak: np.ndarray
+    air: np.ndarray
+    displacement: np.ndarray
+    seen: np.ndarray
+
+
+def _quat_mul(a, b, xp):
+    w0, x0, y0, z0 = (a[..., i] for i in range(4))
+    w1, x1, y1, z1 = (b[..., i] for i in range(4))
+    return xp.stack([w0 * w1 - x0 * x1 - y0 * y1 - z0 * z1,
+                     w0 * x1 + x0 * w1 + y0 * z1 - z0 * y1,
+                     w0 * y1 - x0 * z1 + y0 * w1 + z0 * x1,
+                     w0 * z1 + x0 * y1 - y0 * x1 + z0 * w1], axis=-1)
+
+
+def _quat_to_mat(q, xp):
+    w, x, y, z = (q[..., i] for i in range(4))
+    return xp.stack([
+        xp.stack([1 - 2 * (y*y + z*z), 2 * (x*y - z*w), 2 * (x*z + y*w)], -1),
+        xp.stack([2 * (x*y + z*w), 1 - 2 * (x*x + z*z), 2 * (y*z - x*w)], -1),
+        xp.stack([2 * (x*z - y*w), 2 * (y*z + x*w), 1 - 2 * (x*x + y*y)], -1),
+    ], axis=-2)
+
+
+def _update_outcome(state, data, active, rest_z, dt, xp):
+    """Accumulate the same summary as the env-major physics-rate rollout."""
+    pos, quat = data.qpos[:, :3], data.qpos[:, 3:7]
+    conj = xp.stack([state.previous_quat[..., 0],
+                     -state.previous_quat[..., 1],
+                     -state.previous_quat[..., 2],
+                     -state.previous_quat[..., 3]], axis=-1)
+    delta = _quat_mul(quat, conj, xp)
+    norm = xp.linalg.norm(delta[..., 1:], axis=-1)
+    angle = 2.0 * xp.arctan2(norm, delta[..., 0])
+    axis = delta[..., 1:] / xp.maximum(norm, 1e-12)[..., None]
+    local = xp.einsum("...ji,...j->...i", _quat_to_mat(quat, xp), axis)
+    pair = active & state.seen
+    live = xp.where(pair & (norm > 1e-12), 1.0, 0.0)
+
+    first = active & ~state.seen
+    first_pos = xp.where(first[..., None], pos, state.first_pos)
+    height = pos[:, 2] - rest_z
+    peak = xp.where(active, xp.maximum(state.peak, height), state.peak)
+    air = state.air + xp.where(active & (height > 0.01), dt, 0.0)
+    travel = xp.linalg.norm(pos[:, :2] - first_pos[:, :2], axis=-1)
+    displacement = xp.where(
+        active, xp.maximum(state.displacement, travel), state.displacement)
+    return _OutcomeState(
+        previous_quat=xp.where(active, quat, state.previous_quat),
+        first_pos=first_pos,
+        roll=state.roll + live * angle * local[..., 0],
+        yaw=state.yaw + live * angle * local[..., 2],
+        peak=peak,
+        air=air,
+        displacement=displacement,
+        seen=state.seen | active,
+    )
 
 
 def frames_and_substeps(params, seconds: float = EPISODE_SECONDS,
@@ -50,7 +119,8 @@ def frames_and_substeps(params, seconds: float = EPISODE_SECONDS,
     Rounded UP, so the frame count matches the env-major path's 68 exactly.
     Frame k is sampled at substep `k * per_frame` in both paths, which is what
     makes their outputs comparable; the batch-major loop then runs 6 substeps
-    (12 ms) past the last sampled frame, which nothing observes.
+    (12 ms) past the last sampled frame. Frames do not observe it and outcome
+    accumulation explicitly gates it off at the requested physics step count.
     """
     per_frame = max(1, int(round(1.0 / (fps * params.timestep))))
     n = episode_length(params, seconds)
@@ -66,8 +136,8 @@ def initial_batch(mx, d0, batch: int):
 
 
 def make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots: int,
-                  substeps: int, render=None, cam_id: int = 0,
-                  mocap_id: int = 0):
+                  substeps: int, n_steps: int, rest_z, render=None,
+                  cam_id: int = 0, mocap_id: int = 0):
     """Build the per-FRAME function: `substeps` of physics, then one render."""
     import jax
     import jax.numpy as jnp
@@ -76,7 +146,7 @@ def make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots: int,
     dt = params.timestep
     base_quat = jnp.asarray(g._camera_base_quat(params.cam_pitch_deg))
 
-    def wrench(data, fingers, cam, points, seg_t, t0, t):
+    def wrench(data, fingers, cam, points, seg_t, t0, spin, t):
         """Forces for ONE environment. vmapped over the batch by the caller."""
         cam_target, cam_yaw = g.camera_update(
             cam[0], cam[1], data.xpos[deck_bid],
@@ -97,12 +167,16 @@ def make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots: int,
             torque = torque + gate * to
             new_fingers.append(FingerState(*[jnp.where(live, a, b)
                                              for a, b in zip(st, fingers[s])]))
+        spin_live = ((spin[0] > 0.5) & (t >= spin[1]) & (t <= spin[2]))
+        deck_normal = data.xmat[deck_bid].reshape(3, 3)[:, 2]
+        torque = torque + jnp.where(
+            spin_live, params.spin_torque, 0.0) * deck_normal
         xfrc = jnp.zeros_like(data.xfrc_applied)
         xfrc = xfrc.at[deck_bid, :3].set(force)
         xfrc = xfrc.at[deck_bid, 3:].set(torque)
         return xfrc, tuple(new_fingers), (cam_target, cam_yaw)
 
-    batched_wrench = jax.vmap(wrench, in_axes=(0, 0, 0, 0, 0, 0, None))
+    batched_wrench = jax.vmap(wrench, in_axes=(0, 0, 0, 0, 0, 0, 0, None))
     batched_step = jax.vmap(mjx.step, in_axes=(None, 0))
 
     def camera_mocap(data, cam):
@@ -124,12 +198,15 @@ def make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots: int,
             mocap_quat=data.mocap_quat.at[:, mocap_id].set(quat))
 
     def substep(carry, t):
-        data, fingers, cam, points, seg_t, t0 = carry
+        data, fingers, cam, points, seg_t, t0, spin, outcome = carry
         xfrc, fingers, cam = batched_wrench(data, fingers, cam, points,
-                                            seg_t, t0, t)
+                                            seg_t, t0, spin, t)
         data = camera_mocap(data.replace(xfrc_applied=xfrc), cam)
         data = batched_step(mx, data)
-        return (data, fingers, cam, points, seg_t, t0), None
+        step_index = jnp.rint(t / dt).astype(jnp.int32)
+        outcome = _update_outcome(
+            outcome, data, step_index < n_steps, rest_z, dt, jnp)
+        return (data, fingers, cam, points, seg_t, t0, spin, outcome), None
 
     def frame(carry, t0_frame):
         # ONE substep, then sample, then the rest. That looks arbitrary and is
@@ -167,7 +244,8 @@ def make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots: int,
 def rollout_batched(mx, model, params, deck_bid, deck_gids, init_data,
                     points, seg_t, t0, *, n_slots: int = 2, render=None,
                     cam_id: int = 0, mocap_id: int = 0,
-                    seconds: float = EPISODE_SECONDS) -> BatchRollout:
+                    seconds: float = EPISODE_SECONDS, spin=None,
+                    rest_z=None) -> BatchRollout:
     """Run a whole batch of episodes together. `init_data` carries the batch axis.
 
     `points`, `seg_t` and `t0` are the env-major gesture arrays with a leading
@@ -177,19 +255,38 @@ def rollout_batched(mx, model, params, deck_bid, deck_gids, init_data,
     import jax.numpy as jnp
 
     n_frames, substeps = frames_and_substeps(params, seconds)
+    n_steps = episode_length(params, seconds)
     batch = points.shape[0]
+    if spin is None:
+        spin = jnp.zeros((batch, 3))
+    if rest_z is None:
+        rest_z = init_data.qpos[:, 2]
+    else:
+        rest_z = jnp.broadcast_to(jnp.asarray(rest_z), (batch,))
     frame = make_frame_fn(mx, model, params, deck_bid, deck_gids, n_slots,
-                          substeps, render, cam_id, mocap_id)
+                          substeps, n_steps, rest_z, render, cam_id, mocap_id)
 
     fingers = tuple(jax.tree.map(lambda x: jnp.broadcast_to(x, (batch,) + x.shape),
                                  initial_finger(xp=jnp)) for _ in range(n_slots))
     cam = jax.vmap(lambda p, q: g.camera_reset(p, g.board_yaw(q, xp=jnp),
                                                params, xp=jnp))(
         init_data.xpos[:, deck_bid], init_data.qpos[:, 3:7])
+    outcome = _OutcomeState(
+        previous_quat=init_data.qpos[:, 3:7],
+        first_pos=init_data.qpos[:, :3],
+        roll=jnp.zeros(batch), yaw=jnp.zeros(batch),
+        peak=jnp.full((batch,), -jnp.inf), air=jnp.zeros(batch),
+        displacement=jnp.zeros(batch), seen=jnp.zeros(batch, dtype=bool))
 
     frame_starts = jnp.arange(n_frames, dtype=float) * substeps * params.timestep
-    _, out = jax.lax.scan(frame, (init_data, fingers, cam, points, seg_t, t0),
-                          frame_starts)
+    carry, out = jax.lax.scan(
+        frame, (init_data, fingers, cam, points, seg_t, t0, spin, outcome),
+        frame_starts)
+    outcome = carry[-1]
     return BatchRollout(pos=out[0], quat=out[1],
                         rgb=out[2] if len(out) > 2 else None,
-                        cam_pos=out[3] if len(out) > 3 else None)
+                        cam_pos=out[3] if len(out) > 3 else None,
+                        roll_deg=jnp.degrees(outcome.roll),
+                        yaw_deg=jnp.degrees(outcome.yaw),
+                        peak_height=outcome.peak, air_s=outcome.air,
+                        displacement=outcome.displacement)

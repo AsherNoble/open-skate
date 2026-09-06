@@ -98,3 +98,19 @@ def test_path_endpoints_and_monotonic_progress():
     assert g.position_at(99.0).tolist() == [0.9, 0.15]
     # Waypoints are hit exactly at segment boundaries.
     assert g.position_at(g.seg_t[1]).tolist() == pytest.approx([0.5, 0.5])
+
+
+def test_negative_delay_reorders_and_normalises_device_slots():
+    recipe = {
+        "gestures": [
+            {"points": [[0.2, 0.3], [0.3, 0.4]], "duration": 0.10,
+             "easing_power": 1.0},
+            {"points": [[0.8, 0.7], [0.7, 0.6]], "duration": 0.10,
+             "easing_power": 1.0},
+        ],
+        "delays": [-0.20],
+    }
+    scheduled = gs.schedule_recipe(recipe)
+    assert [row[0] for row in scheduled] == pytest.approx([0.0, 0.1])
+    assert scheduled[0][1].points[0].tolist() == [0.8, 0.7]
+    assert scheduled[1][1].points[0].tolist() == [0.2, 0.3]

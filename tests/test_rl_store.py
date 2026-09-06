@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 from opensk.rl import store
+from opensk.rl.action import action_dim
 
 
 def _save(path, actions, episodes):
@@ -27,7 +28,7 @@ def _episodes(b=5, f=68):
 
 def test_round_trip_preserves_shapes_and_values(tmp_path):
     ep = _episodes()
-    actions = np.random.default_rng(1).normal(size=(5, 17))
+    actions = np.random.default_rng(1).normal(size=(5, action_dim(2)))
     got = store.load(_save(tmp_path / "s.npz", actions, ep))
     assert len(got) == 5
     assert got.pos.shape == (5, 68, 3) and got.quat.shape == (5, 68, 4)
@@ -38,11 +39,11 @@ def test_round_trip_preserves_shapes_and_values(tmp_path):
 
 def test_every_saved_shard_requires_domain_metadata(tmp_path):
     with pytest.raises(TypeError, match="park"):
-        store.save(tmp_path / "s.npz", np.zeros((5, 17)), _episodes())
+        store.save(tmp_path / "s.npz", np.zeros((5, action_dim(2))), _episodes())
 
 
 def test_round_trip_preserves_explicit_domain_metadata(tmp_path):
-    path = store.save(tmp_path / "s.npz", np.zeros((5, 17)), _episodes(),
+    path = store.save(tmp_path / "s.npz", np.zeros((5, action_dim(2))), _episodes(),
                       park="sls", appearance="overcast")
     shard = store.load(path)
     assert (shard.park, shard.appearance) == ("sls", "overcast")
@@ -52,7 +53,7 @@ def test_round_trip_preserves_explicit_domain_metadata(tmp_path):
 
 def test_filtering_keeps_only_physical_episodes(tmp_path):
     got = store.load(_save(tmp_path / "s.npz",
-                           np.zeros((5, 17)), _episodes())).filtered()
+                           np.zeros((5, action_dim(2))), _episodes())).filtered()
     assert len(got) == 3
     assert got.valid.all()
 
@@ -62,7 +63,7 @@ def test_a_shard_from_an_unknown_format_is_refused(tmp_path):
     import json
 
     p = tmp_path / "future.npz"
-    _save(p, np.zeros((5, 17)), _episodes())
+    _save(p, np.zeros((5, action_dim(2))), _episodes())
     with np.load(p) as z:
         data = {k: z[k] for k in z.files}
     data["meta"] = np.frombuffer(
@@ -76,7 +77,7 @@ def test_a_shard_from_an_unknown_format_is_refused(tmp_path):
 def test_shards_iterate_in_a_reproducible_order(tmp_path):
     for i in (2, 0, 1):
         _save(tmp_path / f"shard_{i:05d}.npz",
-              np.full((5, 17), float(i)), _episodes())
+              np.full((5, action_dim(2)), float(i)), _episodes())
     order = [float(s.actions[0, 0]) for s in store.iter_shards(tmp_path)]
     assert order == [0.0, 1.0, 2.0]
 
@@ -92,7 +93,7 @@ def test_frames_round_trip_through_uint8_without_visible_loss(tmp_path):
                   roll_deg=np.zeros(4), yaw_deg=np.zeros(4),
                   peak_height=np.zeros(4), air_s=np.zeros(4),
                   displacement=np.zeros(4), valid=np.ones(4, bool), rgb=frames)
-    got = store.load(_save(tmp_path / "s.npz", np.zeros((4, 17)), ep))
+    got = store.load(_save(tmp_path / "s.npz", np.zeros((4, action_dim(2))), ep))
     assert got.rgb is not None and got.rgb.dtype == np.uint8
     assert np.abs(got.frames_float() - frames).max() < 1.0 / 255.0
 
@@ -111,7 +112,7 @@ def test_filtering_keeps_frames_aligned_with_episodes(tmp_path):
                   displacement=np.zeros(5),
                   valid=np.array([True, False, True, True, False]), rgb=frames)
     got = store.load(_save(tmp_path / "s.npz",
-                           np.zeros((5, 17)), ep)).filtered()
+                           np.zeros((5, action_dim(2))), ep)).filtered()
     assert len(got) == 3
     assert [int(got.rgb[i].flat[0]) for i in range(3)] == [0, 2, 3]
 
@@ -136,7 +137,33 @@ def test_the_world_model_refuses_an_underdetermined_fit(tmp_path):
                       peak_height=np.zeros(2), air_s=np.zeros(2),
                       displacement=np.zeros(2), valid=np.ones(2, bool), rgb=f)
         return store.load(_save(tmp_path / f"s{seed}.npz",
-                                np.zeros((2, 17)), ep))
+                                np.zeros((2, action_dim(2))), ep))
 
     with pytest.raises(ValueError, match="underdetermined"):
         evaluate(shard(0), shard(1), downsample=1)
+
+
+def test_pixel_collection_pads_and_truncates_the_final_fixed_batch(tmp_path):
+    class FixedPixelEnv:
+        pixels = True
+        batch = 4
+        park_name = "plaza"
+        appearance = "indoor"
+
+        def __init__(self):
+            self.calls = []
+
+        def sample_actions(self, n, seed=0):
+            return np.full((n, action_dim(2)), seed, dtype=float)
+
+        def step(self, actions):
+            self.calls.append(len(actions))
+            ep = _episodes(b=len(actions), f=2)
+            return ep._replace(valid=np.ones(len(actions), dtype=bool))
+
+    env = FixedPixelEnv()
+    paths = store.collect(env, 6, batch=99, out=tmp_path, verbose=False)
+    assert env.calls == [4, 4]
+    shards = [store.load(path) for path in paths]
+    assert [len(shard) for shard in shards] == [4, 2]
+    assert all((s.park, s.appearance) == ("plaza", "indoor") for s in shards)

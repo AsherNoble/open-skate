@@ -224,8 +224,17 @@ def with_camera(params: SkateParams, corpus: Corpus) -> SkateParams:
     return params.replace(**corpus.camera) if corpus.camera else params
 
 
+def _objective_indices(corpus: Corpus, subsample: int | None, rng=None):
+    """One reproducible sample set, suitable for sharing across candidates."""
+    if subsample is None or subsample >= len(corpus.samples):
+        return np.arange(len(corpus.samples))
+    rng = rng or np.random.default_rng(0)
+    return rng.choice(len(corpus.samples), subsample, replace=False)
+
+
 def mean_combined(params: SkateParams, corpus: Corpus, *,
-                  subsample: int | None = None, rng=None) -> float:
+                  subsample: int | None = None, rng=None,
+                  sample_indices=None) -> float:
     """Departure error PLUS axis error. Lower is better; fit minimises this.
 
     Departure alone is blind to the axis of rotation, which the round-trip
@@ -235,10 +244,8 @@ def mean_combined(params: SkateParams, corpus: Corpus, *,
     params = with_camera(params, corpus)
     sim = SkateSim(params, corpus.park) if corpus.park else SkateSim(params)
     renderer = SceneRenderer(sim, height=corpus.height)
-    idx = range(len(corpus.samples))
-    if subsample is not None and subsample < len(corpus.samples):
-        rng = rng or np.random.default_rng(0)
-        idx = rng.choice(len(corpus.samples), subsample, replace=False)
+    idx = (_objective_indices(corpus, subsample, rng)
+           if sample_indices is None else sample_indices)
     vals = []
     for i in idx:
         sc = score_sample(corpus.samples[i], params, targets=corpus.targets[i],
@@ -355,39 +362,55 @@ def fit(corpus: Corpus, *, evals: int = 300, seed: int = 0,
     # One generator for the whole run, so each generation scores a different
     # subset and the search cannot overfit one lucky draw.
     obj_rng = np.random.default_rng(seed + 17)
-    best_iou, best_params, n = -1.0, base, 0
+    generation_winners, n = [], 0
     while not es.stop():
         xs = es.ask()
         losses = []
+        # Every candidate in a generation must face the same captures.  With
+        # one draw per candidate, CMA ranks sample difficulty as if it were
+        # parameter quality and can select the luckiest draw.
+        generation_indices = _objective_indices(corpus, subsample, obj_rng)
         for x in xs:
             p = to_params(x)
-            # Minimise departure-curve error, not overlap. See mean_activity.
-            loss = mean_combined(p, corpus, subsample=subsample, rng=obj_rng)
+            loss = mean_combined(
+                p, corpus, sample_indices=generation_indices)
             iou = -loss
             losses.append(loss)
             n += 1
-            if iou > best_iou:
-                best_iou, best_params = iou, p
             if log:
                 log.write(json.dumps({"type": "eval", "eval": n, "iou": iou,
                                       "params": dict(zip(PHYSICS_KEYS,
                                                          map(float, x)))}) + "\n")
                 log.flush()
         es.tell(xs, losses)
+        generation_winners.append(np.asarray(xs[int(np.argmin(losses))]).copy())
         if verbose:
-            print(f"  evals {n:4d}  best train activity {-best_iou:.4f}"
+            print(f"  evals {n:4d}  generation combined {min(losses):.4f}"
                   f"  ({time.time() - t0:.0f}s)")
 
-    report = {"train_activity": -best_iou, "evals": n,
+    # A winner from an early generation and one from a later generation were
+    # trained on different subsets.  Re-rank every generation winner on one
+    # common set so the final choice cannot just be the candidate that saw an
+    # easier draw.  Full-corpus scoring remains the reported result.
+    selection_indices = _objective_indices(corpus, subsample, obj_rng)
+    finalists = [to_params(x) for x in generation_winners] or [base]
+    selection_losses = [mean_combined(
+        p, corpus, sample_indices=selection_indices) for p in finalists]
+    best_params = finalists[int(np.argmin(selection_losses))]
+    train_combined = mean_combined(best_params, corpus)
+    report = {"train_combined": train_combined,
+              "train_activity": mean_activity(best_params, corpus), "evals": n,
               "seconds": time.time() - t0,
               "params": {k: getattr(best_params, k) for k in PHYSICS_KEYS}}
     if held is not None:
-        # Gain on the full held-out set. Positive means the fitted physics
-        # reproduces real motion better than not moving at all; zero or
-        # negative means it does not, whatever the raw overlap says.
+        # Report the exact objective that training minimises.  Activity/gain
+        # remain useful diagnostics but cannot substitute for the axis-aware
+        # combined held-out gate.
+        inert = best_params.replace(touch_gain=1e-3, touch_force_max=1e-3)
+        report["held_combined"] = mean_combined(best_params, held)
+        report["held_combined_inert"] = mean_combined(inert, held)
         report["held_activity"] = mean_activity(best_params, held)
-        report["held_activity_inert"] = mean_activity(
-            best_params.replace(touch_gain=1e-3, touch_force_max=1e-3), held)
+        report["held_activity_inert"] = mean_activity(inert, held)
         report["held_gain"] = mean_gain(best_params, held)
         report["held_iou"] = mean_iou(best_params, held)
     if log:

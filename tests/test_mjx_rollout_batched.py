@@ -68,7 +68,10 @@ def both():
     bpos = np.asarray(rb.pos).transpose(1, 0, 2)
     bquat = np.asarray(rb.quat).transpose(1, 0, 2)
     _, substeps = frames_and_substeps(p)
-    batch = [pose_outcome(bpos[i], bquat[i], p.timestep * substeps, rest_z=rest)
+    from opensk.mjx.outcomes import PoseOutcome
+    batch = [PoseOutcome(float(rb.roll_deg[i]), float(rb.yaw_deg[i]),
+                         float(rb.peak_height[i]), float(rb.air_s[i]),
+                         float(rb.displacement[i]))
              for i in range(len(recipes))]
 
     n = episode_length(p)

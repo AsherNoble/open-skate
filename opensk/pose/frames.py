@@ -52,6 +52,8 @@ class Sample:
     params: list | None = None          # CMA-ES vector, for recipe samples
     video: pathlib.Path | None = None   # frames.mp4, when frames are packed
     _decoded: list | None = None        # lazily decoded video frames
+    spin_hold_start_s: float | None = None
+    spin_hold_end_s: float | None = None
 
     def recipe(self) -> dict:
         """The gesture, in the schema `TouchModel.run` consumes.
@@ -67,10 +69,18 @@ class Sample:
             import numpy as _np
             from trueskate_ai.rl.cmaes.action_param import unpack_gesture_params
             return unpack_gesture_params(_np.asarray(self.params, dtype=float))
-        return {"gestures": [{"points": self.waypoints.tolist(),
-                              "duration": self.duration,
-                              "easing_power": self.easing_power}],
-                "delays": []}
+        recipe = {"gestures": [{"points": self.waypoints.tolist(),
+                                 "duration": self.duration,
+                                 "easing_power": self.easing_power}],
+                  "delays": []}
+        if (self.spin_active and self.spin_hold_start_s is not None
+                and self.spin_hold_end_s is not None):
+            recipe["spin"] = {
+                "enabled": True,
+                "spin_hold_start_s": self.spin_hold_start_s,
+                "spin_hold_end_s": self.spin_hold_end_s,
+            }
+        return recipe
 
     def start_point(self) -> np.ndarray:
         """Where the first finger touches down, in normalised screen coords.
@@ -120,17 +130,23 @@ def load_sample(d: pathlib.Path) -> Sample | None:
     dur = float(m.get("duration", 0.0))
     ease = float(m.get("easing_power", 1.0))
     park, spin = m.get("park"), bool(m.get("spin_active", False))
+    spin_start = m.get("spin_hold_start_s")
+    spin_end = m.get("spin_hold_end_s")
 
     video = d / "frames.mp4"
     if m.get("frames_format") == "mp4" or video.exists():
         # One entry per frame so len(frame_paths) still reports frame count.
         return Sample(d, wp_arr, dur, ease, times, [video] * len(times),
-                      park, spin, params, video)
+                      park, spin, params, video,
+                      spin_hold_start_s=spin_start,
+                      spin_hold_end_s=spin_end)
 
     frames = sorted(d.glob("frame_*.png"))
     if not len(frames) or len(frames) != len(times):
         return None
-    return Sample(d, wp_arr, dur, ease, times, frames, park, spin, params)
+    return Sample(d, wp_arr, dur, ease, times, frames, park, spin, params,
+                  spin_hold_start_s=spin_start,
+                  spin_hold_end_s=spin_end)
 
 
 def iter_samples(root: pathlib.Path = CORPUS):
@@ -152,9 +168,13 @@ def gameplay_flags(sample: Sample) -> np.ndarray:
     gf = _gameplay_filter()
     from PIL import Image
     out = []
-    for p in sample.frame_paths:
+    for i in range(len(sample.frame_paths)):
         try:
-            out.append(bool(gf.is_gameplay_frame(Image.open(p))))
+            frame = sample.frame(i)
+            if frame is None:
+                raise ValueError("frame could not be decoded")
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            out.append(bool(gf.is_gameplay_frame(Image.fromarray(rgb))))
         except Exception:
             out.append(False)
     return np.asarray(out)

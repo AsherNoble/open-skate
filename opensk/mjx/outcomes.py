@@ -210,7 +210,7 @@ def mjx_outcomes(recipes: list[dict], params=None, n_steps: int | None = None,
 
     from ..sim.params import SkateParams
     from .parity import make_mjx
-    from .rollout import episode_length, gesture_arrays, rollout
+    from .rollout import episode_length, gesture_arrays, gesture_spin, rollout
 
     params = params or SkateParams()
     mx, d0, cpu = make_mjx(params)
@@ -224,11 +224,13 @@ def mjx_outcomes(recipes: list[dict], params=None, n_steps: int | None = None,
     P = jnp.asarray(np.stack([a[0] for a in arrays]))
     S = jnp.asarray(np.stack([a[1] for a in arrays]))
     T = jnp.asarray(np.stack([a[2] for a in arrays]))
+    W = jnp.asarray(np.stack([gesture_spin(r, a[1], a[2])
+                             for r, a in zip(recipes, arrays)]))
 
-    run = jax.jit(jax.vmap(lambda p, s, t: rollout(
+    run = jax.jit(jax.vmap(lambda p, s, t, w: rollout(
         mx, cpu.model, params, cpu.deck_bid, sorted(cpu._deck_gids),
-        d0, p, s, t, n, n_slots)))
-    res = run(P, S, T)
+        d0, p, s, t, n, n_slots, w)))
+    res = run(P, S, T, W)
     pos = np.asarray(res.pos)
     quat = np.asarray(res.quat)
     return [pose_outcome(pos[i], quat[i], params.timestep, rest_z=rest)
