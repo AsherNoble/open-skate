@@ -33,7 +33,8 @@ from ..sim.core import SkateSim
 from ..sim.params import SkateParams
 
 
-def make_mjx(params: SkateParams | None = None, park: str | None = None):
+def make_mjx(params: SkateParams | None = None, park: str | None = None,
+             appearance: str = "day"):
     """(mjx_model, mjx_data, cpu_sim) all built from the same MJCF."""
     import jax.numpy as jnp
     import mujoco
@@ -42,9 +43,10 @@ def make_mjx(params: SkateParams | None = None, park: str | None = None):
     from ..sim.model.build import FLAT_PARK, build_scene
 
     params = params or SkateParams()
-    cpu = SkateSim(params, park or FLAT_PARK)
+    cpu = SkateSim(params, park or FLAT_PARK, appearance=appearance)
     cpu.reset(seed=0)
-    model = mujoco.MjModel.from_xml_string(build_scene(params, park or FLAT_PARK))
+    model = mujoco.MjModel.from_xml_string(
+        build_scene(params, park or FLAT_PARK, appearance))
     mx = mjx.put_model(model)
     d = mjx.make_data(mx).replace(qpos=jnp.array(cpu.data.qpos),
                                   qvel=jnp.array(cpu.data.qvel))

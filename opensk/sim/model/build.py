@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import math
 
+from ..appearance import (DEFAULT_APPEARANCE, AppearancePreset, resolve_appearance,
+                          rgb, xyz)
 from ..params import SkateParams
 from . import deck_profile as dp
 from .parks import FLAT_PARK, PARKS  # noqa: F401  (re-exported)
@@ -105,9 +107,57 @@ def _shell(p: SkateParams) -> tuple[str, str]:
 
 
 def deck_asset(p: SkateParams) -> str:
-    """The `<mesh>` asset for the visual deck shell."""
+    """Mesh assets for the outline, inset grip and underside skins."""
     v, f = _shell(p)
-    return f'    <mesh name="deck_shell" vertex="{v}" face="{f}"/>\n'
+    top_v, top_f = _skin(p, +1)
+    bottom_v, bottom_f = _skin(p, -1)
+    return (f'    <mesh name="deck_shell" vertex="{v}" face="{f}"/>\n'
+            f'    <mesh name="deck_grip" vertex="{top_v}" face="{top_f}"/>\n'
+            f'    <mesh name="deck_underside" vertex="{bottom_v}" face="{bottom_f}"/>\n')
+
+
+def _skin(p: SkateParams, surface: int) -> tuple[str, str]:
+    """One slightly offset deck face, leaving the plywood perimeter exposed.
+
+    ``surface`` is +1 for grip and -1 for the underside.  These are visual
+    skins only.  The complete ``deck_shell`` remains the fitting silhouette,
+    while the collision boxes remain the only contact-bearing deck geometry.
+    """
+    hw_max = 0.5 * p.deck_width
+    ht = 0.5 * p.deck_thickness
+    cc = dp.CONCAVE_FRAC * p.deck_width
+    offset = surface * 0.00018
+    ts = [-t for t in reversed(_SHELL_T[1:])] + list(_SHELL_T)
+    verts: list[tuple[float, float, float]] = []
+    for t in ts:
+        xc, zc = deck_station(p, t)
+        pitch = dp.pitch_rad(t)
+        sp, cp = math.sin(pitch), math.cos(pitch)
+        w = hw_max * dp.half_width_frac(t)
+        cap = 1.0
+        if abs(t) > 0.96:
+            cap = math.sqrt(max(0.0, 1.0 - ((abs(t) - 0.96) / 0.04) ** 2))
+        for k in range(_SHELL_K):
+            s = -1.0 + 2.0 * k / (_SHELL_K - 1)
+            n = (-cc * (1.0 - s * s) + surface * ht + offset) * cap
+            verts.append((xc - n * sp, s * w, zc + n * cp))
+
+    faces: list[tuple[int, int, int]] = []
+    for i in range(len(ts) - 1):
+        a, b = i * _SHELL_K, (i + 1) * _SHELL_K
+        for k in range(_SHELL_K - 1):
+            faces.append((a + k, b + k, a + k + 1))
+            faces.append((a + k + 1, b + k, b + k + 1))
+    for end, row in ((-1.0, 0), (1.0, (len(ts) - 1) * _SHELL_K)):
+        xc, zc = deck_station(p, end)
+        apex = len(verts)
+        verts.append((xc, 0.0, zc))
+        for k in range(_SHELL_K - 1):
+            tri = (row + k, apex, row + k + 1)
+            faces.append(tri if end > 0 else (tri[0], tri[2], tri[1]))
+    v = " ".join(f"{c:.5f}" for point in verts for c in point)
+    f = " ".join(str(i) for tri in faces for i in tri)
+    return v, f
 
 
 def ride_height(p: SkateParams) -> float:
@@ -146,9 +196,17 @@ def _baseplate(p: SkateParams, name: str, sign: int) -> str:
     truck: a real baseplate does not pivot, the hanger does."""
     a, b, c = (v * p.axle_halfwidth for v in _BASEPLATE)
     return f"""
-      <geom name="hw_{name}_baseplate" type="box"
-            size="{a:.6f} {b:.6f} {c:.6f}"
+      <geom name="hw_{name}_baseplate" type="ellipsoid"
+            size="{a:.6f} {b:.6f} {max(c, 0.004):.6f}"
             pos="{sign * 0.5 * p.wheelbase:.6f} 0 {-0.5 * p.deck_thickness - c:.6f}"
+            {_VIS} material="mat_truck_dark"/>
+      <geom name="hw_{name}_bolt_l" type="cylinder" size="0.004 0.0015"
+            euler="0 0 0"
+            pos="{sign * 0.5 * p.wheelbase:.6f} {0.55 * b:.6f} {-0.5 * p.deck_thickness - 0.001:.6f}"
+            {_VIS} material="mat_truck"/>
+      <geom name="hw_{name}_bolt_r" type="cylinder" size="0.004 0.0015"
+            euler="0 0 0"
+            pos="{sign * 0.5 * p.wheelbase:.6f} {-0.55 * b:.6f} {-0.5 * p.deck_thickness - 0.001:.6f}"
             {_VIS} material="mat_truck"/>"""
 
 
@@ -160,16 +218,22 @@ def _hanger_visual(p: SkateParams, name: str) -> str:
     Geoms are named `hw_` -- they are hardware, and the fitting silhouette
     selects on `vis_`.
     """
-    ya, yb, yc = (v * p.axle_halfwidth for v in _YOKE)
-    ha, hb, hc = (v * p.axle_halfwidth for v in _HANGER)
+    _, _, yc = (v * p.axle_halfwidth for v in _YOKE)
+    _, hb, hc = (v * p.axle_halfwidth for v in _HANGER)
     return f"""
-        <geom name="hw_{name}_yoke" type="box" size="{ya:.6f} {yb:.6f} {yc:.6f}"
-              pos="0 0 {-TRUCK_DROP + hc + yc:.6f}" {_VIS} material="mat_truck"/>
-        <geom name="hw_{name}_hanger" type="box" size="{ha:.6f} {hb:.6f} {hc:.6f}"
-              pos="0 0 {-TRUCK_DROP + hc:.6f}" {_VIS} material="mat_truck"/>
+        <geom name="hw_{name}_yoke" type="capsule" size="{yc:.6f}"
+              fromto="0 0 {-0.010:.6f} 0 0 {-TRUCK_DROP + hc:.6f}"
+              {_VIS} material="mat_truck_dark"/>
+        <geom name="hw_{name}_hanger" type="capsule" size="{hc:.6f}"
+              fromto="0 {-hb:.6f} {-TRUCK_DROP:.6f}
+                      0 {hb:.6f} {-TRUCK_DROP:.6f}"
+              {_VIS} material="mat_truck"/>
         <geom name="hw_{name}_axle" type="cylinder" size="0.0045 {p.axle_halfwidth:.6f}"
               euler="90 0 0" pos="0 0 {-TRUCK_DROP:.6f}"
-              {_VIS} material="mat_truck"/>"""
+              {_VIS} material="mat_truck_dark"/>
+        <geom name="hw_{name}_bushing" type="cylinder" size="0.012 0.008"
+              pos="0 0 {-TRUCK_DROP + hc + yc:.6f}"
+              {_VIS} material="mat_accent_secondary"/>"""
 
 # Attributes shared by every visual-only geom: no contact, no inertia, and
 # geom group 2 so `mj_ray` can be told to ignore them.
@@ -219,6 +283,9 @@ def build_board(p: SkateParams) -> str:
           <geom name="hw_{name}_wheel_l" type="cylinder"
                 size="{p.wheel_radius:.6f} {TREAD_HALF_WIDTH:.6f}"
                 euler="90 0 0" {_VIS} material="mat_wheel"/>
+          <geom name="hw_{name}_wheel_l_hub" type="cylinder"
+                size="{0.37 * p.wheel_radius:.6f} {TREAD_HALF_WIDTH + 0.0004:.6f}"
+                euler="90 0 0" {_VIS} material="mat_wheel_hub"/>
         </body>
         <body name="{name}_wheel_r" pos="0 -{p.axle_halfwidth:.6f} -{TRUCK_DROP:.6f}">
           <joint name="{name}_wheel_r_spin" type="hinge" axis="0 1 0"
@@ -230,6 +297,9 @@ def build_board(p: SkateParams) -> str:
           <geom name="hw_{name}_wheel_r" type="cylinder"
                 size="{p.wheel_radius:.6f} {TREAD_HALF_WIDTH:.6f}"
                 euler="90 0 0" {_VIS} material="mat_wheel"/>
+          <geom name="hw_{name}_wheel_r_hub" type="cylinder"
+                size="{0.37 * p.wheel_radius:.6f} {TREAD_HALF_WIDTH + 0.0004:.6f}"
+                euler="90 0 0" {_VIS} material="mat_wheel_hub"/>
         </body>
       </body>"""
 
@@ -240,8 +310,23 @@ def build_board(p: SkateParams) -> str:
     # silhouette selects on the `vis_` prefix, and this IS the outline the
     # physics should be fitted against.
     vis = f"""
-      <geom name="vis_deck" type="mesh" mesh="deck_shell" {_VIS}
-            material="mat_grip"/>"""
+      <!-- Group 1 is the canonical fitting silhouette.  RGB skins and art
+           stay in group 2 so mask rendering can hide them explicitly. -->
+      <geom name="vis_deck" type="mesh" mesh="deck_shell"
+            contype="0" conaffinity="0" mass="0" group="1"
+            material="mat_plywood"/>
+      <geom name="boardfx_grip" type="mesh" mesh="deck_grip" {_VIS}
+            material="mat_grip"/>
+      <geom name="boardfx_underside" type="mesh" mesh="deck_underside" {_VIS}
+            material="mat_deck_underside"/>
+      <!-- A long offset register and a short nose tab make yaw, roll and
+           nose/tail readable without becoming a deck graphic or a logo. -->
+      <geom name="boardfx_register" type="box" size="0.115 0.006 0.00022"
+            pos="-0.045 -0.030 0.00205" {_VIS} material="mat_accent"/>
+      <geom name="boardfx_nose_tab" type="box" size="0.025 0.017 0.00025"
+            pos="0.245 0.027 0.00275" {_VIS} material="mat_accent"/>
+      <geom name="boardfx_under_register" type="box" size="0.085 0.005 0.00025"
+            pos="0.055 0.032 -0.00645" {_VIS} material="mat_accent_secondary"/>"""
 
     # COLLISION: boxes following the same centreline. Each spans a segment of
     # the profile; its half-width is the profile's mean over that segment, so
@@ -291,97 +376,87 @@ def _sol(p: SkateParams) -> str:
             f'{p.contact_solimp_width:.6f}"')
 
 
-def build_scene(p: SkateParams, park: str = FLAT_PARK) -> str:
-    """Full MJCF document: options, the park, and the board."""
-    return f"""<mujoco model="open_skate">
+def build_scene(p: SkateParams, park: str = FLAT_PARK,
+                appearance: str | AppearancePreset = DEFAULT_APPEARANCE) -> str:
+    """Full MJCF document: physics plus one visual-only appearance preset."""
+    a = resolve_appearance(appearance)
+    return f"""<mujoco model="open_skate_{a.name}">
   <compiler angle="degree" autolimits="true"/>
   <option timestep="{p.timestep:.6f}" gravity="0 0 -{p.gravity:.6f}"
           integrator="implicitfast" solver="Newton" cone="pyramidal"
           iterations="30" ls_iterations="12"/>
   <visual>
-    <!-- The headlight is a camera-mounted lamp: it lights every surface
-         head-on, which flattens exactly the shading a world model could use
-         to read orientation. Dropped to a low ambient fill so the SUN does
-         the modelling and the board casts a shadow that says where it is
-         relative to the ground -- the one depth cue a single 2D frame has. -->
-    <headlight ambient="0.20 0.21 0.23" diffuse="0.12 0.12 0.13"
-               specular="0.04 0.04 0.04"/>
-    <map znear="0.01" zfar="80" shadowclip="6" shadowscale="1.2"/>
-    <quality shadowsize="4096" offsamples="8"/>
-    <!-- The offscreen framebuffer defaults to 640x480, which caps every
-         render. Silhouette fitting runs small, but figures and inspection
-         want the real capture's portrait shape. -->
+    <!-- Low camera fill plus world-space key/fill lights: form and contact
+         shadows stay legible without the headlight flattening everything. -->
+    <headlight ambient="{rgb(a.ambient)}" diffuse="0.120 0.123 0.128"
+               specular="0.015 0.015 0.015"/>
+    <map znear="0.01" zfar="80" shadowclip="10" shadowscale="0.85"/>
+    <quality shadowsize="4096" offsamples="8" numslices="28" numstacks="18"/>
     <global offheight="1024" offwidth="1024"/>
   </visual>
-  <!-- APPEARANCE. Everything up to now was fitted against SILHOUETTES, where
-       only shape matters and colour is discarded, so the render was never
-       given any. That was fine while masks were the observation and stops
-       being fine the moment pixels are: a world model trained on flat grey
-       primitives has no chance against real True Skate frames. This is the
-       cheap half of Phase 4 -- procedural textures and materials, no meshes,
-       nothing that could upset MJX (textures and materials are visual-only). -->
   <asset>
 {deck_asset(p)}    <texture name="sky" type="skybox" builtin="gradient"
-             rgb1="0.52 0.60 0.72" rgb2="0.86 0.89 0.93" width="256" height="256"/>
-    <texture name="tex_ground" type="2d" builtin="checker" mark="cross"
-             rgb1="0.60 0.60 0.58" rgb2="0.56 0.56 0.55"
-             markrgb="0.66 0.66 0.64" width="512" height="512"/>
-    <material name="mat_ground" texture="tex_ground" texrepeat="18 18"
-              texuniform="true" specular="0.05" shininess="0.02"
-              reflectance="0.02"/>
-    <!-- Grip tape: near-black and matte, which is what it looks like from the
-         chase camera. The noise is what stops a flat deck reading as a hole. -->
-    <texture name="tex_grip" type="2d" builtin="flat" rgb1="0.10 0.10 0.11"
-             rgb2="0.13 0.13 0.15" width="128" height="512" random="0.28"/>
+             rgb1="{rgb(a.sky_top)}" rgb2="{rgb(a.sky_horizon)}"
+             width="256" height="256"/>
+    <!-- Low-contrast slabs: edge marks are expansion joints, tiny checker
+         contrast and random grain carry optical flow at 64x128. -->
+    <texture name="tex_ground" type="2d" builtin="checker" mark="edge"
+             rgb1="{rgb(a.ground_light)}" rgb2="{rgb(a.ground_dark)}"
+             markrgb="{rgb(a.joint)}" width="1024" height="1024"/>
+    <material name="mat_ground" texture="tex_ground" texrepeat="24 24"
+              texuniform="true" specular="0.045" shininess="0.025"
+              reflectance="0.01"/>
+    <texture name="tex_grip" type="2d" builtin="flat"
+             rgb1="{rgb(a.grip_dark)}" rgb2="{rgb(a.grip_light)}"
+             width="128" height="512" random="0.22"/>
     <material name="mat_grip" texture="tex_grip" specular="0.02"
               shininess="0.01" reflectance="0.0"/>
-    <material name="mat_truck" rgba="0.74 0.75 0.78 1" specular="0.55"
-              shininess="0.55" reflectance="0.08"/>
-    <material name="mat_wheel" rgba="0.93 0.92 0.88 1" specular="0.18"
-              shininess="0.12"/>
-    <!-- Concrete, with grain. A flat fill reads as plastic and, more to the
-         point, gives a moving camera nothing to parallax against. -->
+    <material name="mat_deck_underside" rgba="{rgb(a.underside)} 1"
+              specular="0.10" shininess="0.08"/>
+    <material name="mat_plywood" rgba="{rgb(a.plywood)} 1"
+              specular="0.07" shininess="0.04"/>
+    <material name="mat_truck" rgba="{rgb(a.truck)} 1" specular="0.58"
+              shininess="0.48" reflectance="0.06"/>
+    <material name="mat_truck_dark" rgba="0.16 0.18 0.20 1" specular="0.35"
+              shininess="0.28"/>
+    <material name="mat_wheel" rgba="{rgb(a.wheel)} 1" specular="0.16"
+              shininess="0.10"/>
+    <material name="mat_wheel_hub" rgba="0.25 0.27 0.28 1" specular="0.40"
+              shininess="0.32"/>
     <texture name="tex_concrete" type="2d" builtin="flat"
-             rgb1="0.78 0.77 0.74" rgb2="0.71 0.70 0.68"
-             width="256" height="256" random="0.15"/>
-    <material name="mat_concrete" texture="tex_concrete" texrepeat="3 3"
-              texuniform="true" specular="0.06" shininess="0.03"/>
+             rgb1="{rgb(a.concrete_light)}" rgb2="{rgb(a.concrete_dark)}"
+             width="256" height="256" random="0.105"/>
+    <material name="mat_concrete" texture="tex_concrete" texrepeat="4 4"
+              texuniform="true" specular="0.055" shininess="0.025"/>
     <texture name="tex_ledge" type="2d" builtin="flat"
-             rgb1="0.86 0.85 0.81" rgb2="0.80 0.79 0.76"
-             width="256" height="256" random="0.12"/>
+             rgb1="{rgb(a.ledge_light)}" rgb2="{rgb(a.ledge_dark)}"
+             width="256" height="256" random="0.08"/>
     <material name="mat_ledge" texture="tex_ledge" texrepeat="2 2"
-              texuniform="true" specular="0.14" shininess="0.12"/>
-    <material name="mat_rail" rgba="0.80 0.81 0.84 1" specular="0.7"
-              shininess="0.7" reflectance="0.15"/>
-    <!-- The contest flat. It was a FLAT yellow, and at the chase camera's
-         framing that is almost the whole observation: a black board on an
-         untextured field, with no optical flow to read translation from. The
-         board-locked camera already hides translation in the silhouette (see
-         the corpus note: 2 m of travel gives a bit-identical mask); an
-         untextured floor hides it in the pixels too. The slab tiling is the
-         signal that a world model can use to tell moving from still. -->
-    <texture name="tex_plaza" type="2d" builtin="checker" mark="edge"
-             rgb1="0.87 0.75 0.19" rgb2="0.83 0.71 0.17"
-             markrgb="0.70 0.60 0.15" width="512" height="512"/>
-    <material name="mat_plaza" texture="tex_plaza" texrepeat="4 4"
-              texuniform="true" specular="0.05" shininess="0.03"
-              reflectance="0.02"/>
+              texuniform="true" specular="0.11" shininess="0.09"/>
+    <material name="mat_rail" rgba="0.18 0.23 0.26 1" specular="0.62"
+              shininess="0.58" reflectance="0.10"/>
+    <material name="mat_accent" rgba="{rgb(a.accent)} 1" specular="0.09"
+              shininess="0.06"/>
+    <material name="mat_accent_secondary" rgba="{rgb(a.accent_secondary)} 1"
+              specular="0.09" shininess="0.06"/>
+    <material name="mat_scuff" rgba="0.38 0.39 0.39 0.28"
+              specular="0" shininess="0"/>
+    <material name="mat_environment" rgba="0.10 0.11 0.13 1"
+              specular="0.03" shininess="0.02"/>
   </asset>
   <worldbody>
-    <!-- Sun and fill. A single unshadowed lamp gave the board no contact
-         shadow at all, so a board resting on the flat and a board hovering
-         0.3 m above it rendered identically. -->
-    <light name="sun" pos="3 -4 6" dir="-0.35 0.45 -1" directional="true"
-           castshadow="true" diffuse="0.72 0.71 0.68"
-           specular="0.22 0.22 0.22"/>
-    <light name="fill" pos="-5 4 5" dir="0.5 -0.4 -1" directional="true"
-           castshadow="false" diffuse="0.20 0.21 0.24" specular="0 0 0"/>
+    <light name="key" pos="{xyz(a.key_pos)}" dir="{xyz(a.key_dir)}"
+           directional="true" castshadow="true"
+           diffuse="{rgb(a.key_diffuse)}" specular="{rgb(a.key_specular)}"/>
+    <light name="fill" pos="{xyz(a.fill_pos)}" dir="{xyz(a.fill_dir)}"
+           directional="true" castshadow="false"
+           diffuse="{rgb(a.fill_diffuse)}" specular="0 0 0"/>
     <!-- The chase camera, as a model element. The CPU renderer drives a free
          camera from `sim/camera.py` and ignores this one, but MJX's batch
          renderer can only render cameras that exist in the model, and its
          pose is written into `cam_xpos`/`cam_xmat` per world. The fovy is the
          fitted vertical field of view so both paths frame the board alike. -->
-         The `resolution` is NOT optional and NOT cosmetic: MJX's batch
+         The resolution is NOT optional and NOT cosmetic: MJX's batch
          renderer takes its image size from the CAMERA, not from
          `vis.global_.offwidth/offheight`, and an unset resolution renders
          1x1 images. That failure is invisible in every summary statistic --
@@ -398,6 +473,7 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK) -> str:
               resolution="{p.render_width} {p.render_height}"
               pos="0 0 0" quat="1 0 0 0"/>
     </body>
+{a.environment}
 {park}
 {build_board(p)}
   </worldbody>

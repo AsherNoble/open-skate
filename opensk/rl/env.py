@@ -119,7 +119,8 @@ class GestureEnv:
 
     def __init__(self, params: SkateParams | None = None, *, n_slots: int = 2,
                  seconds: float = EPISODE_SECONDS, settle_steps: int = 200,
-                 pixels: bool = False, batch: int | None = None):
+                 pixels: bool = False, batch: int | None = None,
+                 appearance: str = "day"):
         """`pixels=True` renders frames, and needs `batch` fixed up front.
 
         Rendering forces a different nesting. The pose-only path is env-major
@@ -144,7 +145,8 @@ class GestureEnv:
         self.n_steps = episode_length(self.params, seconds)
         self.frames = frame_indices(self.n_steps, self.params)
 
-        mx, d0, cpu = make_mjx(self.params)
+        self.appearance = appearance
+        mx, d0, cpu = make_mjx(self.params, appearance=appearance)
         step = jax.jit(lambda dd: mjx.step(mx, dd))
         for _ in range(settle_steps):     # the board settles before every episode
             d0 = step(d0)
@@ -203,7 +205,8 @@ class GestureEnv:
         from ..sim.model.build import FLAT_PARK, build_scene
 
         p, n_slots, batch = self.params, self.n_slots, self.batch
-        mjm = mujoco.MjModel.from_xml_string(build_scene(p, FLAT_PARK))
+        mjm = mujoco.MjModel.from_xml_string(
+            build_scene(p, FLAT_PARK, self.appearance))
         cam_id = mujoco.mj_name2id(mjm, mujoco.mjtObj.mjOBJ_CAMERA, "chase")
         # The Warp backend preallocates contact buffers and DISCARDS contacts
         # past them, printing a warning and carrying on -- a board partly not

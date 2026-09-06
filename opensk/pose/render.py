@@ -14,6 +14,11 @@ import numpy as np
 from ..sim.camera import FollowCamera, board_yaw
 from ..sim.core import SkateSim
 
+TRAINING_MODE = "training"
+PREVIEW_MODE = "preview"
+LOCAL_PREVIEW_HEIGHT = 812
+RENDER_MODES = (TRAINING_MODE, PREVIEW_MODE)
+
 
 class SceneRenderer:
     """Offscreen renderer driving a MuJoCo free camera from `FollowCamera`.
@@ -30,10 +35,31 @@ class SceneRenderer:
         self._renderer = mujoco.Renderer(sim.model, height=height, width=width)
         self._cam = mujoco.MjvCamera()
         self._cam.type = mujoco.mjtCamera.mjCAMERA_FREE
+        self._mask_option = mujoco.MjvOption()
+        self._mask_option.geomgroup[:] = 0
+        self._mask_option.geomgroup[1] = 1
         # MuJoCo's fovy is a model-level visual setting, not a camera field.
         sim.model.vis.global_.fovy = sim.params.cam_fov_deg
 
-    def render(self, camera: FollowCamera | None = None) -> np.ndarray:
+    @classmethod
+    def for_mode(cls, sim: SkateSim, mode: str = TRAINING_MODE) -> "SceneRenderer":
+        """Construct one of the two supported output modes.
+
+        Training remains exactly ``params.render_width x params.render_height``
+        (64x128 by default).  Preview scales the same fitted projection and
+        portrait aspect to device-like local inspection resolution.  It does
+        not alter FOV, lead, distance, pitch or any other camera geometry.
+        """
+        if mode == TRAINING_MODE:
+            return cls(sim, height=sim.params.render_height,
+                       width=sim.params.render_width)
+        if mode == PREVIEW_MODE:
+            return cls(sim, height=LOCAL_PREVIEW_HEIGHT)
+        raise ValueError(f"unknown render mode {mode!r}; choose one of: "
+                         f"{', '.join(RENDER_MODES)}")
+
+    def render(self, camera: FollowCamera | None = None, *,
+               scene_option: mujoco.MjvOption | None = None) -> np.ndarray:
         cam = camera
         if cam is None:
             cam = FollowCamera(self.sim.params)
@@ -44,7 +70,8 @@ class SceneRenderer:
         self._cam.distance = self.sim.params.cam_distance
         self._cam.elevation = cam.elevation_deg
         self._cam.azimuth = cam.azimuth_deg
-        self._renderer.update_scene(self.sim.data, self._cam)
+        self._renderer.update_scene(self.sim.data, self._cam,
+                                    scene_option=scene_option)
         return self._renderer.render()
 
     def board_pixels(self, camera: FollowCamera | None = None) -> np.ndarray:
@@ -56,7 +83,7 @@ class SceneRenderer:
         """
         self._renderer.enable_segmentation_rendering()
         try:
-            self.render(camera)
+            self.render(camera, scene_option=self._mask_option)
             seg = self._renderer.render()[:, :, 0]
         finally:
             self._renderer.disable_segmentation_rendering()

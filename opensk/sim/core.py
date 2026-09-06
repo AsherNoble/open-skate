@@ -16,6 +16,7 @@ try:
 except ImportError as exc:  # pragma: no cover
     raise ImportError("Open Skate needs mujoco: pip install mujoco") from exc
 
+from .appearance import DEFAULT_APPEARANCE, AppearancePreset, resolve_appearance
 from .model.build import FLAT_PARK, build_scene, ride_height
 from .params import SkateParams
 from .state import WHEELS, State
@@ -29,10 +30,13 @@ _SPIN_JOINTS = tuple(f"{w}_spin" for w in WHEELS)
 
 
 class SkateSim:
-    def __init__(self, params: SkateParams | None = None, park: str = FLAT_PARK):
+    def __init__(self, params: SkateParams | None = None, park: str = FLAT_PARK,
+                 appearance: str | AppearancePreset = DEFAULT_APPEARANCE):
         self.params = params or SkateParams()
         self.park = park
-        self.model = mujoco.MjModel.from_xml_string(build_scene(self.params, park))
+        self.appearance = resolve_appearance(appearance)
+        self.model = mujoco.MjModel.from_xml_string(
+            build_scene(self.params, park, self.appearance))
         self.data = mujoco.MjData(self.model)
         self._rng = np.random.default_rng(0)
 
