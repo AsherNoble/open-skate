@@ -39,10 +39,32 @@ _PLAZA = ('friction="1.0 0.005 0.0001" condim="3"', "mat_ground")
 def _box(name, size, pos, euler=None, style=_CONCRETE) -> str:
     e = f' euler="{euler}"' if euler else ""
     contact, material = style
-    return (f'\n    <geom name="{name}" type="box" size="{size}" pos="{pos}"'
-            f'{e} {contact} {_COL}/>'
-            f'\n    <geom name="parkvis_{name}" type="box" size="{size}" pos="{pos}"'
-            f'{e} {_VIS} material="{material}"/>')
+    out = (f'\n    <geom name="{name}" type="box" size="{size}" pos="{pos}"'
+           f'{e} {contact} {_COL}/>'
+           f'\n    <geom name="parkvis_{name}" type="box" size="{size}" pos="{pos}"'
+           f'{e} {_VIS} material="{material}"/>')
+    # A narrow visual-only roll along axis-aligned top edges catches a soft
+    # highlight and removes the razor-cut CG silhouette.  Collision keeps the
+    # exact authoritative box above. Very thin/large slabs are intentionally
+    # excluded so the ground plane and contest flat do not acquire a lip.
+    if euler is None:
+        sx, sy, sz = (float(value) for value in size.split())
+        cx, cy, cz = (float(value) for value in pos.split())
+        if sz >= 0.05 and sx <= 4.0 and sy <= 4.0:
+            radius = min(0.012, max(0.004, 0.10 * min(sx, sy, sz)))
+            z = cz + sz - 0.35 * radius
+            x0, x1 = cx - sx + radius, cx + sx - radius
+            y0, y1 = cy - sy + radius, cy + sy - radius
+            # The two camera-facing edges do the perceptual work. Drawing all
+            # four doubled this helper's geometry for no visible benefit.
+            edges = (("x_l", x0, y0, z, x1, y0, z),
+                     ("y_n", x0, y0, z, x0, y1, z))
+            for edge, ax, ay, az, bx, by, bz in edges:
+                out += (f'\n    <geom name="parkvis_{name}_soft_{edge}" type="capsule"'
+                        f' fromto="{ax:.4f} {ay:.4f} {az:.4f} '
+                        f'{bx:.4f} {by:.4f} {bz:.4f}" size="{radius:.4f}"'
+                        f' {_VIS} material="{material}"/>')
+    return out
 
 
 def _capsule(name, fromto, radius, style=_RAIL) -> str:
@@ -62,14 +84,35 @@ def _accent_box(name, size, pos, euler=None, *, secondary=False) -> str:
 
 
 def _ground() -> str:
-    """Physical plane, neutral RGB plane, and sparse optical-flow scuffs."""
+    """Physical plane plus irregular, subtle RGB-only concrete detail."""
     out = """
     <geom name="ground" type="plane" size="60 60 0.1" pos="0 0 0"
           friction="1.0 0.005 0.0001" condim="3" group="3"/>
     <geom name="parkvis_ground" type="plane" size="60 60 0.1" pos="0 0 0"
           contype="0" conaffinity="0" mass="0" group="2" material="mat_ground"/>"""
-    # Sparse and asymmetric on purpose: the texture grid gives metric motion;
-    # these fine marks stop a single crop looking computer-perfect.
+    # Expansion joints form varied slabs rather than a repeating checker. They
+    # stay just above the rendered plane and can never enter contacts or rays.
+    for i, x in enumerate((-5.8, -2.7, 1.05, 4.25, 8.1, 12.7)):
+        out += (f'\n    <geom name="fx_ground_joint_cross_{i}" type="box"'
+                f' size="0.0045 12 0.00035" pos="{x} 0 0.0007"'
+                f' {_VIS} material="mat_ground_joint"/>')
+    for i, y in enumerate((-4.1, -1.15, 2.35, 5.8)):
+        out += (f'\n    <geom name="fx_ground_joint_long_{i}" type="box"'
+                f' size="30 0.0045 0.00035" pos="0 {y} 0.0007"'
+                f' {_VIS} material="mat_ground_joint"/>')
+
+    # Broad tonal repairs break up large areas without introducing clutter.
+    for i, (x, y, sx, sy) in enumerate((
+        (-0.9, 1.25, 0.80, 0.42),
+        (2.70, -2.35, 1.15, 0.55),
+        (6.20, 1.10, 1.45, 0.66),
+    )):
+        out += (f'\n    <geom name="fx_ground_patch_{i}" type="box"'
+                f' size="{sx} {sy} 0.00025" pos="{x} {y} 0.0010"'
+                f' {_VIS} material="mat_ground_patch"/>')
+
+    # Sparse and asymmetric on purpose: these fine marks stop any crop looking
+    # computer-perfect, while their low alpha avoids photorealistic clutter.
     for i, (x0, y0, x1, y1) in enumerate((
         (-1.7, -1.2, -1.35, -1.04),
         (1.2, 0.9, 1.65, 0.72),
@@ -79,7 +122,7 @@ def _ground() -> str:
         (-5.0, 2.2, -4.55, 2.05),
     )):
         out += (f'\n    <geom name="fx_ground_scuff_{i}" type="capsule"'
-                f' fromto="{x0} {y0} 0.002 {x1} {y1} 0.002" size="0.006"'
+                f' fromto="{x0} {y0} 0.0015 {x1} {y1} 0.0015" size="0.0025"'
                 f' {_VIS} material="mat_scuff"/>')
     return out
 

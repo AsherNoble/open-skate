@@ -409,6 +409,10 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK,
                 *, visuals: bool = True) -> str:
     """Full MJCF document, optionally stripped to physics for pose rollouts."""
     a = resolve_appearance(appearance)
+
+    def light_rgb(scale: float) -> str:
+        return rgb(tuple(channel * scale for channel in a.key_diffuse))
+
     xml = f"""<mujoco model="open_skate_{a.name}">
   <compiler angle="degree" autolimits="true"/>
   <option timestep="{p.timestep:.6f}" gravity="0 0 -{p.gravity:.6f}"
@@ -417,24 +421,30 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK,
   <visual>
     <!-- Low camera fill plus world-space key/fill lights: form and contact
          shadows stay legible without the headlight flattening everything. -->
-    <headlight ambient="{rgb(a.ambient)}" diffuse="0.195 0.198 0.205"
+    <headlight ambient="{rgb(a.ambient)}" diffuse="0.105 0.108 0.112"
                specular="0.015 0.015 0.015"/>
-    <map znear="0.01" zfar="80" shadowclip="10" shadowscale="0.85"/>
+    <map znear="0.01" zfar="80" fogstart="0.30" fogend="0.88"
+         haze="0.10" shadowclip="0.30" shadowscale="0.85"/>
     <quality shadowsize="4096" offsamples="8" numslices="28" numstacks="18"/>
     <global offheight="1024" offwidth="1024"/>
+    <rgba fog="{rgb(a.sky_horizon)} 1" haze="{rgb(a.sky_horizon)} 1"/>
   </visual>
   <asset>
 {deck_asset(p)}    <texture name="sky" type="skybox" builtin="gradient"
              rgb1="{rgb(a.sky_top)}" rgb2="{rgb(a.sky_horizon)}"
              width="256" height="256"/>
-    <!-- Low-contrast slabs: edge marks are expansion joints, tiny checker
-         contrast and random grain carry optical flow at 64x128. -->
-    <texture name="tex_ground" type="2d" builtin="checker" mark="edge"
+    <!-- Fine stochastic grain is the base. Expansion joints are sparse world
+         geometry below, so the floor supplies flow without reading as a grid. -->
+    <texture name="tex_ground" type="2d" builtin="checker"
              rgb1="{rgb(a.ground_light)}" rgb2="{rgb(a.ground_dark)}"
-             markrgb="{rgb(a.joint)}" width="1024" height="1024"/>
-    <material name="mat_ground" texture="tex_ground" texrepeat="24 24"
+             width="512" height="512" random="0.045"/>
+    <material name="mat_ground" texture="tex_ground" texrepeat="72 72"
               texuniform="true" specular="0.045" shininess="0.025"
               reflectance="0.01"/>
+    <material name="mat_ground_joint" rgba="{rgb(a.joint)} 0.52"
+              specular="0.01" shininess="0"/>
+    <material name="mat_ground_patch" rgba="{rgb(a.ground_dark)} 0.34"
+              specular="0.02" shininess="0.01"/>
     <texture name="tex_grip" type="2d" builtin="flat"
              rgb1="{rgb(a.grip_dark)}" rgb2="{rgb(a.grip_light)}"
              width="128" height="512" random="0.22"/>
@@ -468,15 +478,19 @@ def build_scene(p: SkateParams, park: str = FLAT_PARK,
               shininess="0.06"/>
     <material name="mat_accent_secondary" rgba="{rgb(a.accent_secondary)} 1"
               specular="0.09" shininess="0.06"/>
-    <material name="mat_scuff" rgba="0.38 0.39 0.39 0.28"
+    <material name="mat_scuff" rgba="0.38 0.39 0.39 0.16"
               specular="0" shininess="0"/>
-    <material name="mat_environment" rgba="0.10 0.11 0.13 1"
+    <material name="mat_environment_dark" rgba="{rgb(a.environment_dark)} 1"
               specular="0.03" shininess="0.02"/>
+    <material name="mat_environment_mid" rgba="{rgb(a.environment_mid)} 1"
+              specular="0.025" shininess="0.018"/>
+    <material name="mat_environment_light" rgba="{rgb(a.environment_light)} 1"
+              specular="0.04" shininess="0.025"/>
   </asset>
   <worldbody>
     <light name="key" pos="{xyz(a.key_pos)}" dir="{xyz(a.key_dir)}"
            directional="true" castshadow="true"
-           diffuse="{rgb(a.key_diffuse)}" specular="{rgb(a.key_specular)}"/>
+           diffuse="{light_rgb(1.0)}" specular="{rgb(a.key_specular)}"/>
     <light name="fill" pos="{xyz(a.fill_pos)}" dir="{xyz(a.fill_dir)}"
            directional="true" castshadow="false"
            diffuse="{rgb(a.fill_diffuse)}" specular="0 0 0"/>

@@ -126,18 +126,16 @@ def test_pixel_physics_and_render_models_use_the_same_selected_park():
     assert rendered.camera("chase").id >= 0
 
 
-def test_every_pixel_park_appearance_model_compiles_without_warp():
-    """Validate the exact model path even where the Warp renderer is absent."""
+def test_every_pixel_park_appearance_environment_constructs_without_warp():
+    """Validate the real env/model path even where Warp rendering is absent."""
     from opensk.rl.env import GestureEnv
     from opensk.sim.appearance import APPEARANCE_PRESETS
-    from opensk.sim.params import SkateParams
 
-    for park_name, park in PARKS.items():
+    for park_name in PARKS:
         for appearance in APPEARANCE_PRESETS:
-            selected = GestureEnv.__new__(GestureEnv)
-            selected.params = SkateParams()
-            selected.park_name = park_name
-            selected.park = park
-            selected.appearance = appearance
+            selected = GestureEnv(pixels=True, batch=1, park=park_name,
+                                  appearance=appearance, settle_steps=0)
             model = selected._make_pixel_model()
+            assert selected.park_name == park_name
+            assert selected.appearance == appearance
             assert tuple(model.cam_resolution[model.camera("chase").id]) == (64, 128)

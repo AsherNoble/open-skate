@@ -37,6 +37,27 @@ def test_unknown_appearance_is_refused_with_available_names():
         resolve_appearance("branded-megapark")
 
 
+def test_visual_scene_has_fine_concrete_contact_shadows_and_indoor_depth():
+    root = ET.fromstring(build_scene(SkateParams(), PARKS["plaza"], "indoor"))
+    texture = next(node for node in root.iter("texture")
+                   if node.attrib.get("name") == "tex_ground")
+    material = next(node for node in root.iter("material")
+                    if node.attrib.get("name") == "mat_ground")
+    lights = [node for node in root.iter("light")
+              if node.attrib.get("name", "").startswith("key")]
+    geom_names = {node.attrib.get("name", "") for node in root.iter("geom")}
+
+    # The procedural aggregate is much finer than the old visible slab grid;
+    # sparse joint geoms carry scale independently of the texture.
+    assert texture.attrib["builtin"] == "checker"
+    assert texture.attrib.get("mark") is None
+    assert tuple(map(float, material.attrib["texrepeat"].split())) >= (64, 64)
+    assert len(lights) == 1
+    assert all(light.attrib.get("castshadow") == "true" for light in lights)
+    assert {"fx_indoor_back_wall", "fx_indoor_window_l",
+            "fx_indoor_column_l", "fx_indoor_wall_beam_high"} <= geom_names
+
+
 @pytest.mark.parametrize("appearance", APPEARANCE_PRESETS)
 @pytest.mark.parametrize("park", PARKS)
 def test_render_geometry_has_no_mass_or_collision(appearance, park):

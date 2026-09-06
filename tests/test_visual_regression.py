@@ -30,21 +30,30 @@ def _gl_backend_unavailable(exc: Exception) -> bool:
     return kind in known and any(token in message for token in known[kind])
 
 
-def _render(name: str) -> tuple[np.ndarray, np.ndarray]:
-    sim = SkateSim(park=PARKS["plaza"], appearance=name)
+def _render(name: str, park: str = "plaza") -> tuple[np.ndarray, np.ndarray]:
+    sim = SkateSim(park=PARKS[park], appearance=name)
     sim.reset(seed=0)
     sim.step(400)
     try:
         renderer = SceneRenderer.for_mode(sim, "training")
+        return renderer.render(), renderer.board_pixels()
     except Exception as exc:
         if _gl_backend_unavailable(exc):
             pytest.skip(f"MuJoCo GL backend unavailable: {exc}")
         raise
-    return renderer.render(), renderer.board_pixels()
 
 
 def test_unrelated_renderer_errors_cannot_be_classified_as_gl_unavailable():
     assert not _gl_backend_unavailable(RuntimeError("renderer implementation bug"))
+
+
+def test_renderer_implementation_errors_are_raised_not_skipped(monkeypatch):
+    def broken_renderer(*_args, **_kwargs):
+        raise RuntimeError("deliberate renderer implementation bug")
+
+    monkeypatch.setattr(SceneRenderer, "for_mode", broken_renderer)
+    with pytest.raises(RuntimeError, match="deliberate renderer implementation bug"):
+        _render("day")
 
 
 @pytest.mark.parametrize("appearance", APPEARANCE_PRESETS)
@@ -79,3 +88,17 @@ def test_silhouette_is_independent_of_rgb_appearance():
     masks = [_render(name)[1] for name in APPEARANCE_PRESETS]
     assert masks[0].any()
     assert all(np.array_equal(masks[0], mask) for mask in masks[1:])
+
+
+def test_every_park_renders_useful_training_pixels():
+    """Exercise the real CPU renderer for all collision environments.
+
+    Kept as one test so a genuinely unavailable backend produces one explicit
+    skip, while any failure after context creation still fails the suite.
+    """
+    for park in PARKS:
+        rgb, mask = _render("day", park)
+        assert rgb.shape == (128, 64, 3)
+        assert mask.shape == (128, 64)
+        assert mask.any()
+        assert float(rgb.std()) > 8.0
