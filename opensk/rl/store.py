@@ -203,10 +203,34 @@ def validate(data, meta):
             raise ValueError(f"invalid array {key}")
     if not np.isfinite(actions).all():
         raise ValueError("nonfinite actions")
+    if data['valid'].dtype != np.bool_:
+        raise ValueError('valid must be boolean')
+    for key in ('frame_times','frame_valid','frame_hashes','obstacle_pixels'):
+        if key in data and data[key].shape != (b,f):
+            raise ValueError(f'invalid {key} frame dimensions')
+    if 'frame_times' in data:
+        times=data['frame_times']
+        if not np.isfinite(times).all() or np.any(np.diff(times,axis=1)<=0):
+            raise ValueError('invalid/nonmonotonic frame times')
+    for key in ('episode_id','group_id','outcome_known','variation_seed'):
+        if key in data and data[key].shape != (b,):
+            raise ValueError(f'invalid {key} dimensions')
+    if 'episode_id' in data and len(set(data['episode_id'])) != b:
+        raise ValueError('duplicate episode IDs inside shard')
+    if 'action_features' in data:
+        if data['action_features'].shape != (b,33) or not np.isfinite(data['action_features']).all():
+            raise ValueError('invalid action features')
+    labelled=data.get('outcome_known',np.ones(b,bool)) & data['valid']
+    for key in _ARRAYS[1:-1]:
+        if not np.isfinite(data[key][labelled]).all():
+            raise ValueError(f'nonfinite labelled {key}')
     if "rgb" in data:
         rgb = data["rgb"]
         if rgb.ndim != 5 or rgb.shape[:2] != (b, f) or rgb.shape[-1] != 3 or rgb.dtype != np.uint8:
             raise ValueError("invalid RGB dimensions or dtype")
+        if 'deck_mask' in data and (data['deck_mask'].shape != rgb.shape[:-1]
+                                     or data['deck_mask'].dtype != np.bool_):
+            raise ValueError('invalid deck mask dimensions or dtype')
     if meta["version"] == FORMAT_VERSION:
         if not all(isinstance(meta.get(k), str) and meta[k] for k in ("park", "appearance")):
             raise ValueError("missing park/appearance metadata")

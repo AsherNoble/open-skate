@@ -1,0 +1,11 @@
+#!/bin/sh
+# Bootstrap an isolated project environment, then run only local computation.
+set -eu
+cd "$(dirname "$0")"
+if [ ! -x .venv/bin/python ]; then
+    python3 -m venv .venv
+fi
+if ! .venv/bin/python -c 'import mujoco, numpy, scipy, cv2, cma, pytest; from mujoco import mjx' >/dev/null 2>&1; then
+    .venv/bin/python -m pip install -e '.[dev]'
+fi
+exec .venv/bin/python -m bench.research_local "$@"

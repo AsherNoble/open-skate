@@ -11,6 +11,9 @@ def warp_status():
     import warp
     if not warp.is_cuda_available():
         return False, "MJX Warp rendering requires a CUDA device; CPU rendering uses classic."
+    import jax
+    if not any(device.platform == 'gpu' for device in jax.devices()):
+        return False, "Warp has CUDA but JAX has no GPU backend; use classic or install a matching JAX CUDA stack."
     return True, "CUDA device available (throughput is not yet measured on this device)."
 
 
