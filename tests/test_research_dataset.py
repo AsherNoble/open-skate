@@ -18,6 +18,7 @@ def test_legacy_migration_retains_source_and_disabled_spin(tmp_path):
     p=tmp_path/'legacy.npz'
     data={k:v for k,v in ep()._asdict().items()}
     data['actions']=np.zeros((2,17))
+    data['pos'][0,0,0]=1.2345678901234567
     data['meta']=np.frombuffer(json.dumps(dict(version=1,source='sim')).encode(),np.uint8)
     np.savez_compressed(p,**data)
     digest=store.file_hash(p)
@@ -25,6 +26,8 @@ def test_legacy_migration_retains_source_and_disabled_spin(tmp_path):
     got=store.load(dest)
     assert got.actions.shape==(2,20) and np.all(got.actions[:,-3]==-1)
     assert got.park==got.appearance=='unknown'
+    assert got.pos.dtype==data['pos'].dtype
+    np.testing.assert_array_equal(got.pos,data['pos'])
     assert store.file_hash(p)==digest
     assert len(list(store.iter_shards(tmp_path)))==2
     with pytest.raises(ValueError): store.migrate(p,p)

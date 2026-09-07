@@ -79,14 +79,15 @@ _ARRAYS = ("actions", "pos", "quat", "roll_deg", "yaw_deg", "peak_height",
 
 
 def save(path, actions, episodes, source: str = "sim", *,
-         park: str, appearance: str, metadata=None, extras=None) -> pathlib.Path:
+         park: str, appearance: str, metadata=None, extras=None,
+         preserve_dtype: bool = False) -> pathlib.Path:
     """Write one batch of episodes as a shard. Returns the path written."""
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = {"actions": np.asarray(actions, dtype=np.float32)}
+    data = {"actions": np.asarray(actions, dtype=None if preserve_dtype else np.float32)}
     for name in _ARRAYS[1:]:
         v = np.asarray(getattr(episodes, name))
-        data[name] = v.astype(bool if name == "valid" else np.float32)
+        data[name] = v if preserve_dtype else v.astype(bool if name == "valid" else np.float32)
     rgb = getattr(episodes, "rgb", None)
     if rgb is not None:
         # The renderer emits float in [0, 1] that was quantised to 8 bits on
@@ -252,7 +253,7 @@ def migrate(source, destination):
                 original_sha256=file_hash(source), original_version=shard.metadata["version"])
     return save(destination, shard.actions, shard, source=shard.source,
                 park=shard.park, appearance=shard.appearance,
-                metadata=meta, extras=shard.extras)
+                metadata=meta, extras=shard.extras, preserve_dtype=True)
 
 
 def collect(env, n_episodes: int, *, batch: int = 1024, out=None,
