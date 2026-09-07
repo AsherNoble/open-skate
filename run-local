@@ -3,9 +3,10 @@
 set -eu
 cd "$(dirname "$0")"
 if [ ! -x .venv/bin/python ]; then
+    python3 -c 'import sys; sys.version_info >= (3,11) or sys.exit("Open Skate requires Python 3.11 or newer; install it before running this command.")'
     python3 -m venv .venv
 fi
-if ! .venv/bin/python -c 'import mujoco, numpy, scipy, cv2, cma, pytest; from mujoco import mjx' >/dev/null 2>&1; then
+if ! .venv/bin/python -c 'import mujoco, numpy, scipy, cv2, cma, pytest, PIL; from mujoco import mjx' >/dev/null 2>&1; then
     .venv/bin/python -m pip install -e '.[dev]'
 fi
 exec .venv/bin/python -m bench.research_local "$@"
