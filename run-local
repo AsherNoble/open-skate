@@ -6,7 +6,7 @@ if [ ! -x .venv/bin/python ]; then
     python3 -c 'import sys; sys.version_info >= (3,11) or sys.exit("Open Skate requires Python 3.11 or newer; install it before running this command.")'
     python3 -m venv .venv
 fi
-if ! .venv/bin/python -c 'import mujoco, numpy, scipy, cv2, cma, pytest, PIL; from mujoco import mjx' >/dev/null 2>&1; then
-    .venv/bin/python -m pip install -e '.[dev]'
+if ! .venv/bin/python -c 'from importlib.metadata import version; from pathlib import Path; specs=[line.split("==") for line in Path("requirements-local.txt").read_text().splitlines() if line and not line.startswith("#")]; assert all(version(name)==expected for name,expected in specs)' >/dev/null 2>&1; then
+    .venv/bin/python -m pip install -e '.[dev]' -c requirements-local.txt
 fi
 exec .venv/bin/python -m bench.research_local "$@"

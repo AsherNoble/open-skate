@@ -54,7 +54,8 @@ and a functioning OpenGL display are required):
 ./run-local
 ```
 
-This creates a project virtual environment if needed, collects 144 seeded
+This creates a project virtual environment if needed, installs the tested CPU
+versions in `requirements-local.txt`, collects 144 seeded
 64×128 episodes across flat/plaza/SLS × day/indoor/overcast using Classic MuJoCo,
 verifies/resumes existing shards, trains a small action-conditioned predictor,
 evaluates held-out episodes and overcast scenes, and validates a learned gesture

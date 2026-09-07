@@ -7,6 +7,10 @@ FollowCamera and TouchModel. CUDA is optional; the older batch collector accepts
 its render kernel. It never retries the observed Apple Silicon native crash.
 No remote jobs, Modal calls, or paid services are launched.
 
+`requirements-local.txt` pins the tested numerical/rendering stack for the local
+command. It excludes Modal, CUDA and Warp. This avoids silently changing the
+research environment when a clean checkout installs newer NumPy or JAX versions.
+
 ## Data and recovery
 
 The default experiment writes 72 atomic shards, two gestures per shard, across
