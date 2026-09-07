@@ -1,0 +1,449 @@
+{
+  "domain": [],
+  "test": [
+    {
+      "group": "device:iPhone_XR_20260902_053340",
+      "id": "0ae3a8597f81e3269a94fb52ddbd705ab4dc69c357513e82fa41f0bfd671bd0d",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053340",
+      "id": "0d2b0d56dffe03fb7fe03ac8aed026d5fb712b936d9bcea3b1259e1e14392ef4",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053340",
+      "id": "4265a5fcfbd5ed09f9a5887d7916f292ed1af87fde54ab1b9156ca8aa02dbe64",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "6d84b02f911b2978ddfaef31d7960fc93f655d67de02e7a7bb35024d897f95ce",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "809ff06a2ded50020acd9dc5e3e4e3b69ffa6db7fd5d83c1fba624fa9c50e045",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "868766a2217385b078a78f70e56b25867721c760caca8756681ff416eb57b140",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "a1ecf5f4dcdd52db8443c6b339e6ae368e738ca41a5e8fb59fbbdb37dbe4799d",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053340",
+      "id": "aa537b10ced044b317d78c29b57e91dac741d6b4a714866fda74516403520f26",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "b49ebbebc35ba23a7395355ec3495cfb7e921e9f48b147fad85c1095e9fb9c0b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "c811b64ac1bed3370e6a69aca0e6144b0c723bf9ef0f7b2299c4a92830e7e73b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053340",
+      "id": "cc018e8e16c5a7b6ce26c2e903fd5a854208cfac74e576979cf67a76dc3112da",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "d2dc5772f8d47b3fe521451bc9d9d883d3da0672a5f3b2013c55c91f1481b271",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053340",
+      "id": "dad458af52c34d86ae740edb5cd532f6a6c8b8bcb84e8f32a8ce93311cddd81b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "e332d1d6cb010434b0b76a194f9fb77ecc2194b0f84dcc5c4203f469e3bd9dbe",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053340",
+      "id": "ef0f650ed4a0f8616b37712a26e56460b13409a376d0a385974548824bb64f56",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "f8f8eca7d2bbdaf0b669810fccb97dbf6468bd0e8bf3005b10a48978feeb03e4",
+      "source": "device"
+    }
+  ],
+  "train": [
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "01e13c1088a65574b018112fc84b4f9cfe56a8bf0c425d56b7a98310649e4570",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "053e25b5d4feb10753633c5d8168f9593d9d172c5e1bbce0ca0a03ad9e28a639",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "064a4621ca8541c1f640c47e67e2ce5fcb01089a6c5895724dff8374031035d9",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "08e432dda16601ad0c1464772d9bdff87bf2dbb3e20cfacf890eaad8174097bb",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "094b5d182940032a2f6e326910022ef5e76ffea0d2526de40e499a84f6583115",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "0b24422ca0872d0901f01640fb1c5cca936c65067c1c45da3c60ac98d863e8e8",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "0c7b1433ce5fef8de40ee04f6be3c5099e9dc1346f75fe3efed1d1711f0f1502",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "0f81617b5686da1795c348941b998582cbea85553709f79b0261614140eb2fd0",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "19ab06ce8371601fcf0a6762bafe117c24f4b7647364c1a7468029700e39047e",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "1b77c759031c6a8abf8fc3ca17910a596a09ddc939ca023a9cbe5e23e6719750",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061337",
+      "id": "1c37c25f48249fdcd98954dedfe4b2088071698ca172365d5f7e682d8e841e2e",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "1e8ec3f7cf89ad34973333ce7c76d5ff12644a4abd83a68b59f0b3199dfeefeb",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "2ba329567e0ec858a32a8a1e8352cb3f206e9ca27ed2a465a43ded80a8c798ef",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "2bef73e81e37a1b580c7a21a134c0468f78f4ef61b23903d02944190733e52c4",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "33c45a9ab7ab6f343586619997446adb4f1444a8caf7781cdb6250c78215e78f",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "3472e35874ecfe3be0167d4638191820f82f59dd56ba82e76a01308eda730a03",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "35a857801387f007f28b851b77a58869ad0196aba8feb3f55817081b1cb410c5",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061337",
+      "id": "3607ff529610bd084f36453c086da94f221f73edd838d82c20691d2edee0f7ed",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "376089d9b240f45a39d3a773ac09121ae09c65080b17a6fdb00e398a8369803c",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "3ba965d8ef3dbe7f19d4bcb09abf065348b6a9b0b8f2b6dd6f8ae4f1e685d9bf",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "3d24ef929da70f43799611d9eee7c55d5e57dd1e8393a04e3ee2100b8d8d5b74",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061337",
+      "id": "432965d9d06677262b005539b811380d8825aa63aa5b1ad8b7f15d57ed6a3a21",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "451cef4700d785adb73800f5a3b78f8001b9ce3b8e18366245c4f42a2c72ef4c",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "47f910c18b8bcca1d13d0667faabd3138b044762ea6d96c9fc6373ab3395c0cb",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "489b46b027d575f7656c9c2fa519ea362ddf0d3645ab2e3e8a4d2d72f9ceeaa8",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "4b0d1a6bfd71ebf0112ec250ea7fb4c7dd6c7fb5eea8f145da42d90533102afb",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "50cd24377794e62268bdbf53525c45dcb138598dd39694103f09dff2e6a6f207",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "568bc1377ed0e9d19e8f0be09d01f0c47e08b04d5ce8cef887e8b9c9c49da271",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "5b2a55dcbf0b3e2b30c70d418e0e415531b2ad362c4613ca07e1823728e0ba11",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "611f536cae3464ad398536fb4368e2ad41281aafc56973fdf4191e758fb15ac9",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "68b259beaf4c040ac7699fbdf9cbd177c56d90b98c657264d2674a48a7663832",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "7f2e6bdbc0ae61ee9fc9d2d7a9e711bd4f914a27dd4ecf32a88dffdd8365034d",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "802b5d736b49a9f355116e5a8d64ccdc0a6a56901a91037ae3495afd36b8bcf6",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "815701b00db646c91f140eb73420c75de28dc6d04e16bcde3a271301727cb1ae",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "861cc79ceff0c480810e2f8e6873ced99a00b5bbf2134c31244c09bf86373be3",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "8994616d793f11c77159137e3b5b352582409c2e4c68c30e9ca10a2f4187f6a8",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "89a86d9d581f24e0647557533c51b0862ff38a46bad0c941931cd86a6c9f8f2b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061337",
+      "id": "8e8ef6c952c021b028f657e398ec23628237ae94f7c7d9229674f5951dbf24fc",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "8f07376a6dae2e6ece38ff8f40f5045bd4dc68f0de232b34497e027bda32cdf6",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "9297131901c60289b67e957af0d8f9d69334089d5d8540b7ee4055a54c0873d7",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "9e0472b1af1aceeaea501dff9de0bddb5e2cb164f2139cb69d0b7df671901195",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061337",
+      "id": "a5af09574e12a92e4c8e66aa517fd446f284abcb5fe55db2f995c5e6d9d0d57b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "b22751009db23c1705856c4ee014b76d8f288696dd075bfd2e8172f4cb216295",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061337",
+      "id": "b7c53ba4786fc895ecd42001da853574325f6d2b8cdd2ad8b6a2fcfa91b90ff9",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "b81b35243137f639b0a389ce3d23e5221f69663572b54a990b45d233ebf6a22b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "c21c1270600de6c955d969267d6bf6d7348bfae95f5146795aab687582eaf841",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "e56d915630498b5d830aec47bd08ee5cb2d5fce577da4c68b17f65bb7d85ee2e",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061337",
+      "id": "e774655d03f49052184adeed51efaa567d15f9140286edb6ef1a26731f21eb8b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "e86bbd3f0e52a121f00f9e92b52d8acaf1df78544a14bbdfd78b7473efba4fc9",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "e9600c47c7cfc8edbc116982dd5603e86335ecc3ff7d92ae7b215c568740bcc0",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "e968b9b692befea74eaa58f6f7a97639a5110b7073752aac99a3d94950bcb092",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "ea2fda92ebced8712f597f46b35a29e85f2717e98cc822b409b0ba693fec4baf",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "ec8bb9d6b25b671d3ba58925610a6d51d27b7ae470e294ba163f6cd09a587b5c",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "ee51fcca76b8baf2bc9f8866ae43c035a5c34dcde839f3cc9cd6ea3d7af34cb3",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "f1d5fa3af4741242416fec402f88d97d112c122ebe4987970ca5346c02ae40d2",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "fc8a6ec4ef8ff5f7f93f0dd57b446077eed6de5e79d0b5d233d0baddb1cedd6c",
+      "source": "device"
+    }
+  ],
+  "validation": [
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "092c3f06a53334922573582c182d732d8e6819954f132d1381804966cb0949cc",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "1184ebcab8a266b7ca1bc641c60f01e66a0693b2f1668f0cacff17ad5bde45d8",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060111",
+      "id": "1e7d04ad4b53fb85d3a8ca408ecbf5544837476b66cdceec240132ab5b48cd93",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "1f581fd7b0eb1b9db44ce5ac6677d97f77053e3531b18f769c3ae56aba7bb324",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060111",
+      "id": "2166d01af0b1f8aa7cf4d6047f942ecbc94fe16d4b2327d8c29c9789f81090c3",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "3d2a21d8b43706c94bc3a6e0158adb2503a3dc47e1b937c109bfe83c0d807d07",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "40eb236703669badfd305abbf87c159ce325d37c7690d13492c5c15c713232ac",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "50b42c6d3402498b52ed145ec7a06d059a73ef7208048bc2d704433ec6e0d3c7",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060111",
+      "id": "7209c53f1d4dba32afede4c53a7b84c1747950139ab833c379a133971ebca68c",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060111",
+      "id": "7336aa842c949f1266a564a871591d4d8ef1bfebcc5dc96480c79b2ebcca1f25",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "77c76e6c1efa808e88b26ee818abdc1775f3b129ea3e07402bc0538772e7b6ab",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060111",
+      "id": "82958859fb98b330abf77c06c215e992ac404240fee2e9276bd59d14a520bd4d",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060111",
+      "id": "898d3d0ce28b616bf7aac8dd94ce254902764bcd2511bfc646a899db8f46d352",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060111",
+      "id": "ae35af5282b84fae01858e8c84e1ab0765c3175b1c9b6a4273770568cf55911b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "fb9b8999c8a7439864ba7f4bc5776e5ba56c414fd896cf4a7aacec9cb8276c4a",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "fbf052d51d5a580a7218b7d0ac24c09603b22d78d977846b87c4ca277f92cb86",
+      "source": "device"
+    }
+  ]
+}

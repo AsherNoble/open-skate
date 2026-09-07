@@ -1,0 +1,56 @@
+{
+  "audit": {
+    "incomplete_files": [],
+    "shards": 72
+  },
+  "backend": "classic",
+  "collection": {
+    "elapsed_s": 0.3655585410015192,
+    "incomplete_files": [],
+    "new_shards": 0,
+    "total_shards": 72
+  },
+  "domain_rgb_hashes": {
+    "flat/day": "b4e053e4a96408887868ea0b318cc3705193bfc66dedcc7a2e0d7dfac36f4c6a",
+    "flat/indoor": "3cc6754d3087d1bae2ae6a71a2b999f8560f17c9d357bb34fa56b96c4b6d3031",
+    "flat/overcast": "f4b2a8a4c0b984e666a05bff2e660847d77d2ae62c4d4550405da51dda632cb0",
+    "plaza/day": "1670b6899f19ab1cfaf1fd3fd2a4a09490adf476013f5dd8cd14f925bb882b5c",
+    "plaza/indoor": "4fa98839d71f78d60d0e9b4b9f2500c75409a16304ae0a342dc11940257bc55b",
+    "plaza/overcast": "be412c416ba13e2af2e18b72edc411f93e0d33bf55ebdfba79204b1bef7083b2",
+    "sls/day": "876fc1b17ddb5badc8b93d6823d27158b8ec0b993a44fa7b258036f2a843c09f",
+    "sls/indoor": "b0254a261028cb70ba191379207512fecafb91ed2fb581ba10e7aff7bc998e79",
+    "sls/overcast": "a4ccfc0eb7992a99334d0d50a4d7553ff4a66fada58d567524e3e91f848215db"
+  },
+  "elapsed_s": 148.2738094580127,
+  "episodes_per_domain": {
+    "flat/day": 16,
+    "flat/indoor": 16,
+    "flat/overcast": 16,
+    "plaza/day": 16,
+    "plaza/indoor": 16,
+    "plaza/overcast": 16,
+    "sls/day": 16,
+    "sls/indoor": 16,
+    "sls/overcast": 16
+  },
+  "experts_imported": 88,
+  "machine": "macOS-26.2-arm64-arm-64bit",
+  "minimum_max_obstacle_pixels": {
+    "flat/day": 0,
+    "flat/indoor": 0,
+    "flat/overcast": 0,
+    "plaza/day": 1534,
+    "plaza/indoor": 1534,
+    "plaza/overcast": 1534,
+    "sls/day": 2401,
+    "sls/indoor": 2401,
+    "sls/overcast": 2401
+  },
+  "paid_compute": false,
+  "reports": {
+    "expert": "results/local_research/expert/REPORT.md",
+    "mixed": "results/local_research/mixed/REPORT.md",
+    "synthetic": "results/local_research/synthetic/REPORT.md"
+  },
+  "warp_status": "MJX Warp rendering is disabled on macOS: the ARM CPU render kernel has a confirmed native crash. Use classic."
+}

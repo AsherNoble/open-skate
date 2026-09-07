@@ -219,6 +219,10 @@ def experiment(roots,output,*,mode='synthetic',run_search=True):
     output=Path(output)
     records=read_episodes(roots)
     split=split_episodes(records,mode=mode)
+    if mode=='synthetic' and any(r['source']=='device' for r in records):
+        # Direct transfer measurement: no device frames enter this model's
+        # training, PCA, normalisation, or hyperparameter selection.
+        split['device_transfer']=split_episodes(records,mode='expert')['test']
     store.atomic_json(output/'split.json',{k:[dict(id=r['id'],group=r['group'],source=r['source']) for r in v]
                                            for k,v in split.items()})
     train=pairs(split['train']); val=pairs(split['validation'])
@@ -246,8 +250,8 @@ def experiment(roots,output,*,mode='synthetic',run_search=True):
                     'Physical outcomes use simulator labels; device outcomes remain unknown.',
                     'No phone execution or measured sim-to-real transfer.',
                     'Jetson Nanos and CUDA throughput have not been benchmarked.'])
-    for name in ('validation','test','domain'):
-        if not split[name]:
+    for name in ('validation','test','domain','device_transfer'):
+        if not split.get(name):
             continue
         data=pairs(split[name])
         report['partitions'][name]=pixel_scores(model,data,ablated)

@@ -67,6 +67,18 @@ def main(argv=None):
     for mode,r in reports.items():
         s=r['partitions']['test']
         lines.extend([f"- [{mode}]({mode}/REPORT.md): held-out MSE {s['model_mse']:.6f}; persistence {s['persistence_mse']:.6f}; no-action model {s['no_action_model_mse']:.6f}."])
+        if 'device_transfer' in r['partitions']:
+            transfer=r['partitions']['device_transfer']
+            lines.append(f"  Synthetic-to-device transfer MSE: {transfer['model_mse']:.6f}; persistence {transfer['persistence_mse']:.6f}. No device data entered training or model selection.")
+        if r['search'].get('actual_height_m') is not None:
+            search=r['search']
+            lines.append(f"  Gesture search: selected {search['actual_height_m']:.3f} m actual peak; random-choice expectation {search['random_choice_expected_height_m']:.3f} m; oracle best {search['oracle_best_height_m']:.3f} m across {search['candidates']} new candidates.")
+    for mode,r in reports.items():
+        if r['partitions']['test']['model_mse']>=r['partitions']['test']['no_action_model_mse']:
+            lines.extend(['',f'{mode}: the no-action ablation is at least as strong as the action-conditioned RGB model on test episodes.'])
+        domain=r['partitions'].get('domain')
+        if domain and domain['model_mse']>=domain['persistence_mse']:
+            lines.extend(['',f'{mode}: held-out overcast does not beat persistence.'])
     lines.extend(['', 'Limits: small action distribution and low-resolution linear forecasts. Device physical outcomes are unlabelled. No policy has been executed on a phone. Jetson Nanos have not been benchmarked; no performance claim is made. CUDA is optional and no paid compute is launched.'])
     with store.atomic_file(output/'REPORT.md') as stream:
         stream.write(('\n'.join(lines)+'\n').encode())

@@ -1,5 +1,11 @@
 # Balanced local pixel-dataset plan
 
+This earlier large collection plan is retained for reference. The current small,
+end-to-end CPU experiment is `./run-local`; see [the research protocol](LOCAL_RESEARCH_PROTOCOL.md).
+Current shards use format 4, and the batch collector now supports `--backend
+auto|classic|warp`. The historical Warp-only host restriction below no longer
+applies to Classic collection.
+
 The training matrix is the full 3×3 product:
 
 | Park | Day | Indoor | Overcast |

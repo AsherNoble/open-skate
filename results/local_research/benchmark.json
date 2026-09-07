@@ -1,0 +1,18 @@
+{
+  "backend": "classic",
+  "episode_seconds": 1.2,
+  "episodes_per_trial": 2,
+  "exact_repeated_trajectory_and_rgb": true,
+  "frames_per_episode": 37,
+  "includes": "scene construction, settling, touch physics, RGB, deck masks and obstacle segmentation",
+  "independent_saved_shard_matches": true,
+  "jetson": "not measured; run this command on each Nano before claiming utility",
+  "machine": "macOS-26.2-arm64-arm-64bit",
+  "median_episodes_per_second": 1.9021216548334337,
+  "median_frames_per_second": 70.37850122883705,
+  "seconds_per_trial": [
+    1.2752631669864058,
+    1.0514574580010958,
+    1.0020883750112262
+  ]
+}

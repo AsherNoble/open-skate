@@ -1,0 +1,262 @@
+{
+  "elapsed_s": 7.344663625000976,
+  "horizon_s": 0.2,
+  "limitations": [
+    "Small paired tail-gesture distribution; not full trick coverage.",
+    "Physical outcomes use simulator labels; device outcomes remain unknown.",
+    "No phone execution or measured sim-to-real transfer.",
+    "Jetson Nanos and CUDA throughput have not been benchmarked."
+  ],
+  "mode": "synthetic",
+  "model": "PCA(16) + ridge residual RGB, recipe/time interactions",
+  "paired_gesture_effect": {
+    "actual_change_mse": 0.019402293488383293,
+    "effect_cosine": 0.33169168876222954,
+    "effect_error_mse": 0.02576948411565856,
+    "pairs": 12,
+    "predicted_change_mse": 0.019156592383067775,
+    "zero_effect_error_mse": 0.019402293488383293
+  },
+  "partitions": {
+    "device_transfer": {
+      "action_prediction_change_mse": 0.01599268036863521,
+      "episodes": 16,
+      "mean_frame_mse": 0.10589971393346786,
+      "model_mse": 0.03196124314949121,
+      "no_action_model_mse": 0.019602584592376432,
+      "pairs": 751,
+      "persistence_mse": 0.016397936269640923,
+      "shuffled_action_mse": 0.03202619826149601
+    },
+    "device_transfer_device": {
+      "action_prediction_change_mse": 0.01599268036863521,
+      "episodes": 16,
+      "mean_frame_mse": 0.10589971393346786,
+      "model_mse": 0.03196124314949121,
+      "no_action_model_mse": 0.019602584592376432,
+      "pairs": 751,
+      "persistence_mse": 0.016397936269640923,
+      "shuffled_action_mse": 0.03202619826149601
+    },
+    "domain": {
+      "action_prediction_change_mse": 0.0032563014620786966,
+      "episodes": 12,
+      "mean_frame_mse": 0.05344955623149872,
+      "model_mse": 0.009292308232538833,
+      "no_action_model_mse": 0.008835615705261929,
+      "pairs": 372,
+      "persistence_mse": 0.009138642810285091,
+      "shuffled_action_mse": 0.009890875729342124
+    },
+    "domain_sim": {
+      "action_prediction_change_mse": 0.0032563014620786966,
+      "episodes": 12,
+      "mean_frame_mse": 0.05344955623149872,
+      "model_mse": 0.009292308232538833,
+      "no_action_model_mse": 0.008835615705261929,
+      "pairs": 372,
+      "persistence_mse": 0.009138642810285091,
+      "shuffled_action_mse": 0.009890875729342124
+    },
+    "test": {
+      "action_prediction_change_mse": 0.0031447666281889815,
+      "episodes": 24,
+      "mean_frame_mse": 0.05376633629202843,
+      "model_mse": 0.010890721053936908,
+      "no_action_model_mse": 0.01030449674219493,
+      "pairs": 744,
+      "persistence_mse": 0.011058132164180279,
+      "shuffled_action_mse": 0.011719928712099002
+    },
+    "test_sim": {
+      "action_prediction_change_mse": 0.0031447666281889815,
+      "episodes": 24,
+      "mean_frame_mse": 0.05376633629202843,
+      "model_mse": 0.010890721053936908,
+      "no_action_model_mse": 0.01030449674219493,
+      "pairs": 744,
+      "persistence_mse": 0.011058132164180279,
+      "shuffled_action_mse": 0.011719928712099002
+    },
+    "validation": {
+      "action_prediction_change_mse": 0.002984389100550522,
+      "episodes": 24,
+      "mean_frame_mse": 0.02981632761657238,
+      "model_mse": 0.008058865242003924,
+      "no_action_model_mse": 0.007141606237548058,
+      "pairs": 744,
+      "persistence_mse": 0.009196892380714417,
+      "shuffled_action_mse": 0.009163695571479634
+    },
+    "validation_sim": {
+      "action_prediction_change_mse": 0.002984389100550522,
+      "episodes": 24,
+      "mean_frame_mse": 0.02981632761657238,
+      "model_mse": 0.008058865242003924,
+      "no_action_model_mse": 0.007141606237548058,
+      "pairs": 744,
+      "persistence_mse": 0.009196892380714417,
+      "shuffled_action_mse": 0.009163695571479634
+    }
+  },
+  "physical_outcomes": {
+    "device_transfer": {
+      "labelled_episodes": 0,
+      "reason": "no independently measured physical labels"
+    },
+    "domain": {
+      "labelled_episodes": 12,
+      "mean_baseline_mae": {
+        "air_s": 0.31291666626930237,
+        "displacement_m": 0.672846794128418,
+        "peak_height_m": 0.06804224103689194,
+        "roll_deg": 25.2390193939209,
+        "yaw_deg": 50.18221664428711
+      },
+      "model_mae": {
+        "air_s": 0.28054475335678564,
+        "displacement_m": 0.692576315271629,
+        "peak_height_m": 0.06293499069248497,
+        "roll_deg": 27.725068255721137,
+        "yaw_deg": 46.04553048237466
+      }
+    },
+    "test": {
+      "labelled_episodes": 24,
+      "mean_baseline_mae": {
+        "air_s": 0.3129166066646576,
+        "displacement_m": 0.6728469729423523,
+        "peak_height_m": 0.06804224848747253,
+        "roll_deg": 25.239011764526367,
+        "yaw_deg": 50.18220901489258
+      },
+      "model_mae": {
+        "air_s": 0.2805447533567857,
+        "displacement_m": 0.692576315271629,
+        "peak_height_m": 0.06293499069248498,
+        "roll_deg": 27.72506825572113,
+        "yaw_deg": 46.04553048237465
+      }
+    },
+    "validation": {
+      "labelled_episodes": 24,
+      "mean_baseline_mae": {
+        "air_s": 0.29395827651023865,
+        "displacement_m": 0.2732882797718048,
+        "peak_height_m": 0.05678762495517731,
+        "roll_deg": 8.775107383728027,
+        "yaw_deg": 39.49372482299805
+      },
+      "model_mae": {
+        "air_s": 0.22975220875481636,
+        "displacement_m": 0.2929447742274191,
+        "peak_height_m": 0.04937966679466619,
+        "roll_deg": 9.633024614722236,
+        "yaw_deg": 28.311552696742908
+      }
+    }
+  },
+  "prediction_resolution": [
+    8,
+    16
+  ],
+  "ridge": 100.0,
+  "search": {
+    "actual_height_m": 0.18966525981657528,
+    "all_actual_heights_m": [
+      0.001067977391349187,
+      0.05940237314888713,
+      0.07623381345745286,
+      0.17039877913142315,
+      0.0006524028206006116,
+      0.0007457119480582253,
+      0.27362580142255233,
+      7.030838036770071e-09,
+      0.08893409696504126,
+      0.2019051905653999,
+      0.0007238549202497335,
+      0.18966525981657528
+    ],
+    "all_predicted_heights_m": [
+      0.0014691458657548374,
+      0.022154347865393408,
+      0.0034110277594311122,
+      0.048896714772203025,
+      -0.011395263435434705,
+      0.02447842492408047,
+      0.03552407107770711,
+      0.03092950672437154,
+      -0.0006913415595704298,
+      0.036156216580081724,
+      -0.008210791035471551,
+      0.05273956831029654
+    ],
+    "candidates": 12,
+    "device_execution": "not performed",
+    "objective": "peak height (metres)",
+    "oracle_best_height_m": 0.27362580142255233,
+    "predicted_height_m": 0.05273956831029654,
+    "random_choice_expected_height_m": 0.08861293905153565,
+    "recipe": {
+      "delays": [
+        0.175
+      ],
+      "gestures": [
+        {
+          "duration": 0.15290586878994594,
+          "easing_power": 1.0,
+          "points": [
+            [
+              0.513451160516015,
+              0.6680077320431461
+            ],
+            [
+              0.5842159968969054,
+              0.5762916391553077
+            ],
+            [
+              0.6549808332777957,
+              0.48457554626746935
+            ]
+          ]
+        },
+        {
+          "duration": 0.059999999999999984,
+          "easing_power": 1.0,
+          "points": [
+            [
+              0.9,
+              0.2
+            ],
+            [
+              0.9,
+              0.2
+            ],
+            [
+              0.9,
+              0.2
+            ]
+          ]
+        }
+      ],
+      "spin": {
+        "enabled": false,
+        "t_end": 0.5,
+        "t_start": 0.5
+      }
+    },
+    "seed": 9001,
+    "selected": 11
+  },
+  "split_counts": {
+    "device_transfer": 16,
+    "domain": 12,
+    "test": 24,
+    "train": 48,
+    "validation": 24
+  },
+  "training_resolution": [
+    64,
+    128
+  ]
+}

@@ -89,6 +89,22 @@ def test_learning_recovers_controlled_action_effect(tmp_path):
     np.testing.assert_array_equal(model.predict(held),RidgeWorld.load(tmp_path/'model.npz').predict(held))
 
 
+def test_synthetic_transfer_excludes_device_training(tmp_path,monkeypatch):
+    from opensk.rl import research
+    synthetic=records()
+    device=[dict(r,id='device/'+r['id'],group='device/'+r['group'],source='device',
+                 appearance='unknown',known=False,rgb=r['rgb']+2,
+                 hashes=['device/'+h for h in r['hashes']])
+            for r in synthetic if r['appearance']=='day']
+    monkeypatch.setattr(research,'read_episodes',lambda roots:synthetic+device)
+    report=research.experiment([],tmp_path,mode='synthetic',run_search=False)
+    split=json.loads((tmp_path/'split.json').read_text())
+    assert all(r['source']=='sim' for part in ('train','validation','test') for r in split[part])
+    assert all(r['source']=='device' for r in split['device_transfer'])
+    assert report['partitions']['device_transfer']['episodes']>0
+    assert report['physical_outcomes']['device_transfer']['labelled_episodes']==0
+
+
 def test_actual_end_to_end_resume_train_evaluate(tmp_path):
     from opensk.pose.render import SceneRenderer,gl_backend_unavailable
     from opensk.sim.core import SkateSim

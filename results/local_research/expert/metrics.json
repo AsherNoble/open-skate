@@ -1,0 +1,85 @@
+{
+  "elapsed_s": 2.030632375011919,
+  "horizon_s": 0.2,
+  "limitations": [
+    "Small paired tail-gesture distribution; not full trick coverage.",
+    "Physical outcomes use simulator labels; device outcomes remain unknown.",
+    "No phone execution or measured sim-to-real transfer.",
+    "Jetson Nanos and CUDA throughput have not been benchmarked."
+  ],
+  "mode": "expert",
+  "model": "PCA(16) + ridge residual RGB, recipe/time interactions",
+  "paired_gesture_effect": {
+    "pairs": 0
+  },
+  "partitions": {
+    "test": {
+      "action_prediction_change_mse": 0.0003148394967152109,
+      "episodes": 16,
+      "mean_frame_mse": 0.025221923366189003,
+      "model_mse": 0.0016534649015492642,
+      "no_action_model_mse": 0.0015144723747464964,
+      "pairs": 751,
+      "persistence_mse": 0.016397936269640923,
+      "shuffled_action_mse": 0.001672069167363144
+    },
+    "test_device": {
+      "action_prediction_change_mse": 0.0003148394967152109,
+      "episodes": 16,
+      "mean_frame_mse": 0.025221923366189003,
+      "model_mse": 0.0016534649015492642,
+      "no_action_model_mse": 0.0015144723747464964,
+      "pairs": 751,
+      "persistence_mse": 0.016397936269640923,
+      "shuffled_action_mse": 0.001672069167363144
+    },
+    "validation": {
+      "action_prediction_change_mse": 0.00011945037673898458,
+      "episodes": 16,
+      "mean_frame_mse": 0.021086525171995163,
+      "model_mse": 0.0016100246808660765,
+      "no_action_model_mse": 0.001619962472099804,
+      "pairs": 746,
+      "persistence_mse": 0.017644423991441727,
+      "shuffled_action_mse": 0.0016585433837338793
+    },
+    "validation_device": {
+      "action_prediction_change_mse": 0.00011945037673898458,
+      "episodes": 16,
+      "mean_frame_mse": 0.021086525171995163,
+      "model_mse": 0.0016100246808660765,
+      "no_action_model_mse": 0.001619962472099804,
+      "pairs": 746,
+      "persistence_mse": 0.017644423991441727,
+      "shuffled_action_mse": 0.0016585433837338793
+    }
+  },
+  "physical_outcomes": {
+    "test": {
+      "labelled_episodes": 0,
+      "reason": "no independently measured physical labels"
+    },
+    "validation": {
+      "labelled_episodes": 0,
+      "reason": "no independently measured physical labels"
+    }
+  },
+  "prediction_resolution": [
+    8,
+    16
+  ],
+  "ridge": 0.1,
+  "search": {
+    "status": "disabled"
+  },
+  "split_counts": {
+    "domain": 0,
+    "test": 16,
+    "train": 56,
+    "validation": 16
+  },
+  "training_resolution": [
+    64,
+    128
+  ]
+}

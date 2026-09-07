@@ -1,8 +1,9 @@
 """Plan or collect balanced local pixel shards without Modal.
 
 The default matrix is the full Cartesian product of the three authoritative
-parks and three neutral appearances.  Use ``--dry-run`` first; collection
-requires a local MJX Warp-capable render host and can be resumed per domain.
+parks and three neutral appearances. Use ``--dry-run`` to inspect the plan.
+Automatic backend selection uses Classic CPU rendering when CUDA is unavailable.
+For the complete experiment with varied approaches and learning, use run-local.
 """
 from __future__ import annotations
 

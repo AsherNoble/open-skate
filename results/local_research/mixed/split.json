@@ -1,0 +1,990 @@
+{
+  "domain": [
+    {
+      "group": "sim:2026:4",
+      "id": "6b77c129433124002255e7d43a18e5863c9facb40374f41c57cbb3a797654106",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "bf3fd101788d8d02c17672b03d59dbe1726c06964cf48e3031734f4cffdd69c8",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "f2f19fc43dc7774b8dec5982df092ce1bfb48fd68a29578eba677703197fc539",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "4adbe816e485149568f688eeb7ad9801187395bebb1c391abc114b6e6639c362",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "44ab224953b49bc4ddaf0538e01f687daf10cd4517ef3b3bb2ac622724afd68d",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "87069b0eb62714d664e786c4149cac7f923fdb0c382363d2b4e11816e9bcf803",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "2ff2c341115a997b3ad866251719c54c3fbdd6e0a63f9f42af5a8be06810713e",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "fe540e520863aae6bbc8e3c4d137f1d92d448a09b15a196054db1452ccf36038",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "845acca67872d1d084bf609173dedd3ea364d58fddf216b85779437a77951b12",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "53aee2efeca84b9bd25db8bbfb91a83ee3e1ce1dea6fd91669c8130895f43859",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "b461bf851c952e815a797d48042da0d28e53d72ea0f40f8fc440325650dd89db",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "129d958c948648564b90942fdf36b7a29c355334f3690e4f57668cbbae0268f2",
+      "source": "sim"
+    }
+  ],
+  "test": [
+    {
+      "group": "sim:2026:4",
+      "id": "abc21982750fade35232f543ff78cec0c73ac6417c40f9d57282aeb56846e4ed",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "2d89e2859e68f48e1870462b9f3eff4f7b1f9189a643aab80ee0047f3a297303",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "ecea8584d750b32d1b38bd17224de85f2007129277cc24eb68b4fc59ae287ad9",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "a51043d155cb8a06ca4fe89fd9c63de8d2e01876413db6b941e2f6439266c53c",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "ccfe22af8bf365c7256f7990bf3455e15d552ca546a020d5ff532d9afee32ec2",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "0955887928cdb6819ada290635bf35fdfd624f458cf8f88f07a75266bf651100",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "7a2b70fb6e246db2e822a031a1410e23f12b3d41c1aafdcc1a335a6adaa90f0c",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "7c3a9e57ce5aa306347412084c7d960997b960be013ccd9bac085055488506e6",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "55018ad9fea66b68ba1d8c94551485de51c6744008c8170d71c7e2b4a62cad3b",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "0e8def69f8123c4b67f3dd0a8712c89afabb66e00d21468653ea6927c13dcd83",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "a600cbb5879d3d14d94761438904a226121221d83d9cd5f04277c823657ebef0",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "6987847d49ea81ff74ba1b3d2823308f7f30f6feda297132d78e2dc66a039047",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "f7a508d74cc34b949d9a4f6210dc0b35b3d1aabbdcea93e1fae3e6efc5d9e2db",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "f67777abc1209b5477b7846284468f82e98cbda5837d2aabebf7620d4a919d9d",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "c9c0534fff383a2f08092e262e23683d8552345a701b9cd4bc17993ca389f1d4",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "7534a9f4673f849c4d2783b4e74c26cde0682aeadf7a28d96f175e4479e909ae",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "21409dd3c268091239b9c8a0d7603125b5273c98098cf7848852b9027ec49186",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "8c89e1ae49dbdb168fca95ee126e9635529a6cf5be907e5f22de6c985d0d51ec",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "0436534261175330a3700432ebbad0b37c26783c95a4f776bf6904810903a6a7",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "b9297d1687499b7fb1f079ad9f29f0d0273d60be78868f9ebe6fd20be3cc546d",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "376f296c4abd55e59bd7c53b097a10a874aa6c35d2f46b17e36a769514bb79a9",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:4",
+      "id": "88e154f3d68598e8da46cb097c5aa34f507f182420446ba38f81af0bd450e692",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "c1abd1822404db4f61f5341faca66986bb65d606f8545df9a787a77c50b174e5",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:6",
+      "id": "41efb6768c53c1721888620e13bf04c0a806f1a3f3dab554cfa30783fb40e98b",
+      "source": "sim"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053340",
+      "id": "0ae3a8597f81e3269a94fb52ddbd705ab4dc69c357513e82fa41f0bfd671bd0d",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053340",
+      "id": "0d2b0d56dffe03fb7fe03ac8aed026d5fb712b936d9bcea3b1259e1e14392ef4",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053340",
+      "id": "4265a5fcfbd5ed09f9a5887d7916f292ed1af87fde54ab1b9156ca8aa02dbe64",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "6d84b02f911b2978ddfaef31d7960fc93f655d67de02e7a7bb35024d897f95ce",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "809ff06a2ded50020acd9dc5e3e4e3b69ffa6db7fd5d83c1fba624fa9c50e045",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "868766a2217385b078a78f70e56b25867721c760caca8756681ff416eb57b140",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "a1ecf5f4dcdd52db8443c6b339e6ae368e738ca41a5e8fb59fbbdb37dbe4799d",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053340",
+      "id": "aa537b10ced044b317d78c29b57e91dac741d6b4a714866fda74516403520f26",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "b49ebbebc35ba23a7395355ec3495cfb7e921e9f48b147fad85c1095e9fb9c0b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "c811b64ac1bed3370e6a69aca0e6144b0c723bf9ef0f7b2299c4a92830e7e73b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053340",
+      "id": "cc018e8e16c5a7b6ce26c2e903fd5a854208cfac74e576979cf67a76dc3112da",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "d2dc5772f8d47b3fe521451bc9d9d883d3da0672a5f3b2013c55c91f1481b271",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053340",
+      "id": "dad458af52c34d86ae740edb5cd532f6a6c8b8bcb84e8f32a8ce93311cddd81b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "e332d1d6cb010434b0b76a194f9fb77ecc2194b0f84dcc5c4203f469e3bd9dbe",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053340",
+      "id": "ef0f650ed4a0f8616b37712a26e56460b13409a376d0a385974548824bb64f56",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060928",
+      "id": "f8f8eca7d2bbdaf0b669810fccb97dbf6468bd0e8bf3005b10a48978feeb03e4",
+      "source": "device"
+    }
+  ],
+  "train": [
+    {
+      "group": "sim:2026:0",
+      "id": "c541a8b2a52feb2eda0cfb03a588d91c80bce12c2ef302d21f1f3b9fc4bdd037",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:0",
+      "id": "4f1fd25eed66c426b80f7ae1605dcbf4e0d2269151bda52272af5a601908f654",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:1",
+      "id": "c08cfd4e27467c32d52559b22f5e14206bf4e1d5e7270389e797a42425cd668b",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:1",
+      "id": "390e05211bd447a27fb01a14a8711fbd892e20fc001b11d0adb8fd508cde531f",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:3",
+      "id": "39053eb66d7a4ec2c649cc7ce8c59fe76fa13d408eb1134ff85d009d8a8169a4",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:3",
+      "id": "8f6cf1319431fa27c1391c6bda6e8a35d9825966c3811ab489c357b183cb7ce2",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:5",
+      "id": "76e90ea50c0fd2bee061141cc7efc12711c40ac18343e2d7aa67571ccfbad756",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:5",
+      "id": "99c63a07dead661297c50a9f99659a7a6303ab302e8be2d04374e7bff6c5e7fe",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:0",
+      "id": "c334e82d0329a2641d643d2c8889a96874621d8ec11908159d7262a08c83df6b",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:0",
+      "id": "94d9d75a33b8e0517eff5fc7ec853f538ea630cc5dd55d898b4fb389879a0ead",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:1",
+      "id": "c8fce83550804c6cc808c1b77b20d153807ebd613e4cc34d9aa4232bbdb16422",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:1",
+      "id": "081931cc0745153d600b6f264482bed05eeaf266ff21d11e38a306c9064c1851",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:3",
+      "id": "c730c4c386cb31af03a2b940ae28ed0a93109cec5d9bfc6aac83dbd45b23d461",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:3",
+      "id": "af0d1fc30d39ff4f859c76941231c1b9d7382e132c7f9e08f0cbc20f3f030f18",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:5",
+      "id": "d8fd5551e8d1488a974711c6283b10a201d79a5cee2907c97feceb632db00d9a",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:5",
+      "id": "1e0c0dc0e5756536a76c133a400cb9db8f2ed4c8e7cc126303ef6e8369468d01",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:0",
+      "id": "6d29581741b720e0fc403920cf10e1b1c92316657bae4ce107b72fa5341049f0",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:0",
+      "id": "46cb81dac9122b37a07ac1c4cd8d9040d173098f155f5c3d345b37be2912715f",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:1",
+      "id": "ac07f7ffeede34623564a022189b5577c4224f8081e8ba27bf283f6038a95851",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:1",
+      "id": "e9af7b4782fc1c7b5d4beff79064452f50a66d93c1dd6e9ee8d294dfd50a9b72",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:3",
+      "id": "5523509f51b633063237e8ca454f16329da8a5fd9d1566418af35bb916c14531",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:3",
+      "id": "aa33fb71579024a301ddfce6b8bb9169b8e3dfa16644c516e70ba4e7f01902c8",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:5",
+      "id": "7718df2acf670eee85b2b36e5541d09a225488f18ad42ad2ba92db9cae06f7ef",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:5",
+      "id": "f1ff57fff0572f1cd709a5b7c466236740be714dc424706c89437899def87697",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:0",
+      "id": "7718a6b70ac300cb35f7dd2ed24ce8cf03d00aa6d417fe518d507f837eccea2d",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:0",
+      "id": "714abcf5f005712f6dab7c0294f74345b93eb6fbfcb06471032e727f7f747eda",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:1",
+      "id": "5d9624ce9ec14b33af6344d7a46790364662ff71f89e162fc74fb8208800fed4",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:1",
+      "id": "1bda45a11c0216be54e2e9b79d3bf7973aacd2d63a5d3be398174578f33e8a9c",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:3",
+      "id": "8dcf6c5915d580d5d1e3dd14f262b3d9b36fdaf1c8378252699814a0ab06b406",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:3",
+      "id": "1295a381b28d37eecaae4a62b2897020a1ffa5b1856b6e2c31c94422fd5aa881",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:5",
+      "id": "349ecf32eb5a0b06f79cfc041a5b3334aebd54be1903976d6ce3c4f65a04bf31",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:5",
+      "id": "6ec6f09e9716dd8a35f1ad03a442a14591edd070ff966d41e16b41cd8ff2985a",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:0",
+      "id": "e5bf04e45be781faf0cf64947fac180376b914d961530ec3fe3c396bc9de9e32",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:0",
+      "id": "e36f86de2951467afafea61dff6aed10733413e0483a3255afeef9e9fb00f1c2",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:1",
+      "id": "78abfde510da55a0a76eb31dba52f56c4d5645cd38b5317e24d831227956ef6a",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:1",
+      "id": "b1a9cabcf8c6ed8783929b8a7708486d7c9f85d4c115149159b1678775b80153",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:3",
+      "id": "21dceb83b6f2da95b581a2df14e048af714cfe7fdfa56869bf50a94f1e14d18d",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:3",
+      "id": "b2bf65fe9e4c7fe81871a4ddd6048f99a7432492e021790348822472763028d5",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:5",
+      "id": "4145546536aea007d9c0fdc2f1599e8ce44afe86fcde82c74b81764959e6ddc8",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:5",
+      "id": "5091f6d96acec07a0e367eebd8fa42bed9e38ec2f9ac496476c20b7a5e866da7",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:0",
+      "id": "4ad33991d70c660bbe2e38c17ae7f73ab5c9ba084dd9ebe4b549cc5fe562adee",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:0",
+      "id": "f523b764bfb490f1cbca0e1e7a67d7d3bdc07ad301ccd1a3df0c681f7744a73b",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:1",
+      "id": "8cea7d71fc830995caaf2606c71118497a2d28c4c9781026c034cfc9e01bbc2e",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:1",
+      "id": "b983796db39f6bae4a89a13643f105b4c2f63a1241876ffb7c41184f660b89d3",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:3",
+      "id": "81f21116498716ed79cc38e0a3c5012fb7afdad19a3cf0c373f3a38d69151856",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:3",
+      "id": "756007aa36f32afe357433cd8a69e212d54e689a6194e64a18ceb4bdd28aeb8f",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:5",
+      "id": "b4b7aa0b95c8d945d0833c9818ca56c6cb1d62c7b44215ada0cbc7b6c0e69110",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:5",
+      "id": "ee5e1d6179953533dbf0e16f771e97b41d4443d1b83800566ad483824f66a277",
+      "source": "sim"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "01e13c1088a65574b018112fc84b4f9cfe56a8bf0c425d56b7a98310649e4570",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "053e25b5d4feb10753633c5d8168f9593d9d172c5e1bbce0ca0a03ad9e28a639",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "064a4621ca8541c1f640c47e67e2ce5fcb01089a6c5895724dff8374031035d9",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "08e432dda16601ad0c1464772d9bdff87bf2dbb3e20cfacf890eaad8174097bb",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "094b5d182940032a2f6e326910022ef5e76ffea0d2526de40e499a84f6583115",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "0b24422ca0872d0901f01640fb1c5cca936c65067c1c45da3c60ac98d863e8e8",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "0c7b1433ce5fef8de40ee04f6be3c5099e9dc1346f75fe3efed1d1711f0f1502",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "0f81617b5686da1795c348941b998582cbea85553709f79b0261614140eb2fd0",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "19ab06ce8371601fcf0a6762bafe117c24f4b7647364c1a7468029700e39047e",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "1b77c759031c6a8abf8fc3ca17910a596a09ddc939ca023a9cbe5e23e6719750",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061337",
+      "id": "1c37c25f48249fdcd98954dedfe4b2088071698ca172365d5f7e682d8e841e2e",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "1e8ec3f7cf89ad34973333ce7c76d5ff12644a4abd83a68b59f0b3199dfeefeb",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "2ba329567e0ec858a32a8a1e8352cb3f206e9ca27ed2a465a43ded80a8c798ef",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "2bef73e81e37a1b580c7a21a134c0468f78f4ef61b23903d02944190733e52c4",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "33c45a9ab7ab6f343586619997446adb4f1444a8caf7781cdb6250c78215e78f",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "3472e35874ecfe3be0167d4638191820f82f59dd56ba82e76a01308eda730a03",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "35a857801387f007f28b851b77a58869ad0196aba8feb3f55817081b1cb410c5",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061337",
+      "id": "3607ff529610bd084f36453c086da94f221f73edd838d82c20691d2edee0f7ed",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "376089d9b240f45a39d3a773ac09121ae09c65080b17a6fdb00e398a8369803c",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "3ba965d8ef3dbe7f19d4bcb09abf065348b6a9b0b8f2b6dd6f8ae4f1e685d9bf",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "3d24ef929da70f43799611d9eee7c55d5e57dd1e8393a04e3ee2100b8d8d5b74",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061337",
+      "id": "432965d9d06677262b005539b811380d8825aa63aa5b1ad8b7f15d57ed6a3a21",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "451cef4700d785adb73800f5a3b78f8001b9ce3b8e18366245c4f42a2c72ef4c",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "47f910c18b8bcca1d13d0667faabd3138b044762ea6d96c9fc6373ab3395c0cb",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "489b46b027d575f7656c9c2fa519ea362ddf0d3645ab2e3e8a4d2d72f9ceeaa8",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "4b0d1a6bfd71ebf0112ec250ea7fb4c7dd6c7fb5eea8f145da42d90533102afb",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "50cd24377794e62268bdbf53525c45dcb138598dd39694103f09dff2e6a6f207",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "568bc1377ed0e9d19e8f0be09d01f0c47e08b04d5ce8cef887e8b9c9c49da271",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "5b2a55dcbf0b3e2b30c70d418e0e415531b2ad362c4613ca07e1823728e0ba11",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "611f536cae3464ad398536fb4368e2ad41281aafc56973fdf4191e758fb15ac9",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "68b259beaf4c040ac7699fbdf9cbd177c56d90b98c657264d2674a48a7663832",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "7f2e6bdbc0ae61ee9fc9d2d7a9e711bd4f914a27dd4ecf32a88dffdd8365034d",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "802b5d736b49a9f355116e5a8d64ccdc0a6a56901a91037ae3495afd36b8bcf6",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "815701b00db646c91f140eb73420c75de28dc6d04e16bcde3a271301727cb1ae",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "861cc79ceff0c480810e2f8e6873ced99a00b5bbf2134c31244c09bf86373be3",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "8994616d793f11c77159137e3b5b352582409c2e4c68c30e9ca10a2f4187f6a8",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "89a86d9d581f24e0647557533c51b0862ff38a46bad0c941931cd86a6c9f8f2b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061337",
+      "id": "8e8ef6c952c021b028f657e398ec23628237ae94f7c7d9229674f5951dbf24fc",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "8f07376a6dae2e6ece38ff8f40f5045bd4dc68f0de232b34497e027bda32cdf6",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "9297131901c60289b67e957af0d8f9d69334089d5d8540b7ee4055a54c0873d7",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "9e0472b1af1aceeaea501dff9de0bddb5e2cb164f2139cb69d0b7df671901195",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061337",
+      "id": "a5af09574e12a92e4c8e66aa517fd446f284abcb5fe55db2f995c5e6d9d0d57b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "b22751009db23c1705856c4ee014b76d8f288696dd075bfd2e8172f4cb216295",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061337",
+      "id": "b7c53ba4786fc895ecd42001da853574325f6d2b8cdd2ad8b6a2fcfa91b90ff9",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "b81b35243137f639b0a389ce3d23e5221f69663572b54a990b45d233ebf6a22b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "c21c1270600de6c955d969267d6bf6d7348bfae95f5146795aab687582eaf841",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_062153",
+      "id": "e56d915630498b5d830aec47bd08ee5cb2d5fce577da4c68b17f65bb7d85ee2e",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061337",
+      "id": "e774655d03f49052184adeed51efaa567d15f9140286edb6ef1a26731f21eb8b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "e86bbd3f0e52a121f00f9e92b52d8acaf1df78544a14bbdfd78b7473efba4fc9",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "e9600c47c7cfc8edbc116982dd5603e86335ecc3ff7d92ae7b215c568740bcc0",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_061740",
+      "id": "e968b9b692befea74eaa58f6f7a97639a5110b7073752aac99a3d94950bcb092",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_055000",
+      "id": "ea2fda92ebced8712f597f46b35a29e85f2717e98cc822b409b0ba693fec4baf",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_053747",
+      "id": "ec8bb9d6b25b671d3ba58925610a6d51d27b7ae470e294ba163f6cd09a587b5c",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "ee51fcca76b8baf2bc9f8866ae43c035a5c34dcde839f3cc9cd6ea3d7af34cb3",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060525",
+      "id": "f1d5fa3af4741242416fec402f88d97d112c122ebe4987970ca5346c02ae40d2",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054557",
+      "id": "fc8a6ec4ef8ff5f7f93f0dd57b446077eed6de5e79d0b5d233d0baddb1cedd6c",
+      "source": "device"
+    }
+  ],
+  "validation": [
+    {
+      "group": "sim:2026:2",
+      "id": "a7e527442f766a4d05f474c5736ecaec6dec9e020fef2ebf7641ff56fd1cd72b",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:2",
+      "id": "ba00115e4ab8e3e750c1e2fd3add38003e1e3908cddd41c9564311f60d0c73be",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:7",
+      "id": "3c484375a77c0e033003757f090fd770951e3ec157173b7786a0b2bc72791615",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:7",
+      "id": "8ea630e01333992a3dda36cf7ef2f32aedc4e2ed7f7ae58ecb187abedcd3c1e4",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:2",
+      "id": "d281b54105a745d18243f4c73a967685781dfe2c54bfd236824b97c6837d3c88",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:2",
+      "id": "183e38edb2a9fbde65ef3e8754ac6db71497ca85e8cbf2097a68c0043bca9be3",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:7",
+      "id": "33583b46949e3b34b6750322a0c89f426ca944c30f0ec4df7321ca8e2f8147bc",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:7",
+      "id": "8e4ed6af1674febb1df5e297b9a99d7696934528103a9ae16bcb52ee3aa7a8dd",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:2",
+      "id": "393fed28033dd4f36e901ca33f92fbf0eabceae00aa68f4d24e7dd41b270b3ad",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:2",
+      "id": "4866c0af377d2cec087ac8f8ee14b07d2d5181015d7d87f3b9cece1268ebb660",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:7",
+      "id": "c341a4a4d4637fcbca94ae1e8f88437508ba8a7f3ec37c6081647421ad0c2bd2",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:7",
+      "id": "1d8bd13fbd5180d1502fc68f070ec6d8405602f11c70c5cf6b3477b64ff9c9bb",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:2",
+      "id": "edb7ceb888fa9418d1da21e16e037f4a64e092a8238e4729c434ad3ff706a95b",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:2",
+      "id": "766f11ad54aa9cf4faa03e7fb55e9baedb2a857df8d9f9939d283e6ac341c42b",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:7",
+      "id": "a58b342497640058fde84f7f543133442296cf544ea63f4c450954808a22451d",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:7",
+      "id": "8626ba8f1ec0f13937540644b73f49887c505cbec38482e8ac186ff15e17a137",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:2",
+      "id": "292d1c134f9f2db300f347a11f2da8cf5a24b63ab941185f29e5069feb55288d",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:2",
+      "id": "29de8d8651a39e81d173d1d8d4a566c58c3f820a4a6ba5e145aa872e54fbc619",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:7",
+      "id": "9ef7ef9ca6d89bccea6900b4a141824448739247e26e5bed960a22ceaf242f86",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:7",
+      "id": "8b5751a88523e4a59abca666d6c066094988924fa75270b46d1598ba1a6e872e",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:2",
+      "id": "7debd56161071ca0ec80bdbab1a2a8d9fbfdce1690c5367e0b76744e76123277",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:2",
+      "id": "fa4db3cbae4f5d35c5d9b35e225f5bb964b7bd15777efd85232a8cf067b6d200",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:7",
+      "id": "9b0d9ef2664afbc8ff70888e5036949b47656b54721b463d6a4927068eced89c",
+      "source": "sim"
+    },
+    {
+      "group": "sim:2026:7",
+      "id": "974b2887b096b631a7a7684623637dc0514972cc71365f1ea3f391325d5fae0c",
+      "source": "sim"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "092c3f06a53334922573582c182d732d8e6819954f132d1381804966cb0949cc",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "1184ebcab8a266b7ca1bc641c60f01e66a0693b2f1668f0cacff17ad5bde45d8",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060111",
+      "id": "1e7d04ad4b53fb85d3a8ca408ecbf5544837476b66cdceec240132ab5b48cd93",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "1f581fd7b0eb1b9db44ce5ac6677d97f77053e3531b18f769c3ae56aba7bb324",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060111",
+      "id": "2166d01af0b1f8aa7cf4d6047f942ecbc94fe16d4b2327d8c29c9789f81090c3",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "3d2a21d8b43706c94bc3a6e0158adb2503a3dc47e1b937c109bfe83c0d807d07",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "40eb236703669badfd305abbf87c159ce325d37c7690d13492c5c15c713232ac",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "50b42c6d3402498b52ed145ec7a06d059a73ef7208048bc2d704433ec6e0d3c7",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060111",
+      "id": "7209c53f1d4dba32afede4c53a7b84c1747950139ab833c379a133971ebca68c",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060111",
+      "id": "7336aa842c949f1266a564a871591d4d8ef1bfebcc5dc96480c79b2ebcca1f25",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "77c76e6c1efa808e88b26ee818abdc1775f3b129ea3e07402bc0538772e7b6ab",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060111",
+      "id": "82958859fb98b330abf77c06c215e992ac404240fee2e9276bd59d14a520bd4d",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060111",
+      "id": "898d3d0ce28b616bf7aac8dd94ce254902764bcd2511bfc646a899db8f46d352",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_060111",
+      "id": "ae35af5282b84fae01858e8c84e1ab0765c3175b1c9b6a4273770568cf55911b",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "fb9b8999c8a7439864ba7f4bc5776e5ba56c414fd896cf4a7aacec9cb8276c4a",
+      "source": "device"
+    },
+    {
+      "group": "device:iPhone_XR_20260902_054150",
+      "id": "fbf052d51d5a580a7218b7d0ac24c09603b22d78d977846b87c4ca277f92cb86",
+      "source": "device"
+    }
+  ]
+}
