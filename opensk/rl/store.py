@@ -19,13 +19,16 @@ from __future__ import annotations
 
 import json
 import pathlib
+import hashlib
+import os
+import tempfile
 from dataclasses import dataclass
 
 import numpy as np
 
 # Bumped whenever the stored layout changes meaning. A reader that finds a
 # version it does not know refuses the shard rather than misinterpreting it.
-FORMAT_VERSION = 3
+FORMAT_VERSION = 4
 
 
 @dataclass(frozen=True)
@@ -43,6 +46,8 @@ class Shard:
     park: str                 # collision environment used for every episode
     appearance: str           # RGB preset used for every episode
     rgb: np.ndarray | None = None   # (B, F, H, W, 3) uint8, when rendered
+    metadata: dict | None = None
+    extras: dict | None = None
 
     def __len__(self) -> int:
         return len(self.actions)
@@ -58,7 +63,9 @@ class Shard:
         return Shard(*[np.asarray(getattr(self, n))[k] for n in _ARRAYS],
                      source=self.source, park=self.park,
                      appearance=self.appearance,
-                     rgb=None if self.rgb is None else np.asarray(self.rgb)[k])
+                     rgb=None if self.rgb is None else np.asarray(self.rgb)[k],
+                     metadata=self.metadata,
+                     extras={n: v[k] for n, v in (self.extras or {}).items()})
 
     def frames_float(self) -> np.ndarray:
         """Frames back as float32 in [0, 1], the form a model consumes."""
@@ -72,7 +79,7 @@ _ARRAYS = ("actions", "pos", "quat", "roll_deg", "yaw_deg", "peak_height",
 
 
 def save(path, actions, episodes, source: str = "sim", *,
-         park: str, appearance: str) -> pathlib.Path:
+         park: str, appearance: str, metadata=None, extras=None) -> pathlib.Path:
     """Write one batch of episodes as a shard. Returns the path written."""
     path = pathlib.Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -84,32 +91,144 @@ def save(path, actions, episodes, source: str = "sim", *,
     if rgb is not None:
         # The renderer emits float in [0, 1] that was quantised to 8 bits on
         # the way out, so rounding back to uint8 loses nothing and saves 4x.
-        data["rgb"] = np.clip(np.asarray(rgb) * 255.0 + 0.5, 0, 255
-                              ).astype(np.uint8)
-    data["meta"] = np.frombuffer(
-        json.dumps({"version": FORMAT_VERSION, "source": source,
-                    "park": park, "appearance": appearance}).encode(),
-        dtype=np.uint8)
-    np.savez_compressed(path, **data)
+        rgb = np.asarray(rgb)
+        data["rgb"] = (rgb if rgb.dtype == np.uint8 else
+                       np.clip(rgb * 255.0 + 0.5, 0, 255).astype(np.uint8))
+    for name, value in (extras or {}).items():
+        if name in data or name == "meta":
+            raise ValueError(f"reserved array: {name}")
+        data[name] = np.asarray(value)
+    meta = dict(metadata or {})
+    meta.update(version=FORMAT_VERSION, source=source, park=park,
+                appearance=appearance,
+                checksums={k: array_hash(v) for k, v in data.items()})
+    data["meta"] = np.frombuffer(json.dumps(meta, sort_keys=True).encode(), np.uint8)
+    validate(data, meta)
+    with atomic_file(path) as stream:
+        np.savez_compressed(stream, **data)
     return path
 
 
 def load(path) -> Shard:
     with np.load(path, allow_pickle=False) as z:
         meta = json.loads(bytes(z["meta"]).decode())
-        if meta["version"] != FORMAT_VERSION:
+        if meta["version"] not in (1, 2, 3, FORMAT_VERSION):
             raise ValueError(
                 f"{path}: format version {meta['version']}, expected "
                 f"{FORMAT_VERSION}. Refusing to guess at the layout.")
-        return Shard(*[z[n] for n in _ARRAYS], source=meta["source"],
-                     park=meta["park"], appearance=meta["appearance"],
-                     rgb=z["rgb"] if "rgb" in z.files else None)
+        data = {k: z[k] for k in z.files}
+    validate(data, meta)
+    if meta["version"] < 3 and data["actions"].shape[1] % 9 == 8:
+        # Old policy vectors had no rotate-button controls. Disabled gate;
+        # leave the original values intact and never modify the source file.
+        data["actions"] = np.pad(data["actions"], ((0, 0), (0, 3)))
+        data["actions"][:, -3] = -1
+    meta.setdefault("park", "unknown")
+    meta.setdefault("appearance", "unknown")
+    return Shard(*[data[n] for n in _ARRAYS], source=meta["source"],
+                 park=meta["park"], appearance=meta["appearance"],
+                 rgb=data.get("rgb"), metadata=meta,
+                 extras={k: v for k, v in data.items()
+                         if k not in (*_ARRAYS, "rgb", "meta")})
 
 
 def iter_shards(directory):
     """Every shard under `directory`, in sorted order for reproducibility."""
-    for p in sorted(pathlib.Path(directory).glob("*.npz")):
+    for p in sorted(pathlib.Path(directory).rglob("*.npz")):
         yield load(p)
+
+
+def array_hash(a):
+    a = np.asarray(a)
+    return hashlib.sha256(str((a.dtype.str, a.shape)).encode()
+                          + a.tobytes()).hexdigest()
+
+
+def file_hash(path):
+    with open(path, "rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+from contextlib import contextmanager
+
+
+@contextmanager
+def atomic_file(path):
+    """Same-filesystem rename is the commit point; a crash leaves .partial only."""
+    path = pathlib.Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(prefix=path.name + ".", suffix=".partial",
+                               dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            yield stream
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(tmp, path)
+        directory = os.open(path.parent, os.O_RDONLY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
+def atomic_json(path, data):
+    with atomic_file(path) as stream:
+        stream.write(json.dumps(data, indent=2, sort_keys=True,
+                                allow_nan=False).encode())
+
+
+def validate(data, meta):
+    if not isinstance(meta.get("source"), str):
+        raise ValueError("missing source metadata")
+    for key in _ARRAYS:
+        if key not in data:
+            raise ValueError(f"incomplete shard: missing {key}")
+    actions, pos, quat = (data[k] for k in ("actions", "pos", "quat"))
+    if actions.ndim != 2 or pos.ndim != 3 or pos.shape[-1] != 3:
+        raise ValueError("invalid action/pose dimensions")
+    b, f = pos.shape[:2]
+    if not b or not f or len(actions) != b or quat.shape != (b, f, 4):
+        raise ValueError("inconsistent episode/frame dimensions")
+    for key in _ARRAYS[3:]:
+        if data[key].shape != (b,):
+            raise ValueError(f"invalid {key} dimensions")
+    for key, value in data.items():
+        if key == "meta":
+            continue
+        if value.dtype.hasobject or value.ndim == 0 or len(value) != b:
+            raise ValueError(f"invalid array {key}")
+    if not np.isfinite(actions).all():
+        raise ValueError("nonfinite actions")
+    if "rgb" in data:
+        rgb = data["rgb"]
+        if rgb.ndim != 5 or rgb.shape[:2] != (b, f) or rgb.shape[-1] != 3 or rgb.dtype != np.uint8:
+            raise ValueError("invalid RGB dimensions or dtype")
+    if meta["version"] == FORMAT_VERSION:
+        if not all(isinstance(meta.get(k), str) and meta[k] for k in ("park", "appearance")):
+            raise ValueError("missing park/appearance metadata")
+        expected = meta.get("checksums", {})
+        if set(expected) != set(data) - {"meta"}:
+            raise ValueError("missing array checksums")
+        for key, digest in expected.items():
+            if array_hash(data[key]) != digest:
+                raise ValueError(f"checksum mismatch: {key}")
+
+
+def migrate(source, destination):
+    """Lossless array migration into a NEW path; original shard is retained."""
+    source, destination = pathlib.Path(source), pathlib.Path(destination)
+    if source.resolve() == destination.resolve() or destination.exists():
+        raise ValueError("migration requires a new destination; retain original")
+    shard = load(source)
+    meta = dict(shard.metadata, migrated_from=str(source),
+                original_sha256=file_hash(source), original_version=shard.metadata["version"])
+    return save(destination, shard.actions, shard, source=shard.source,
+                park=shard.park, appearance=shard.appearance,
+                metadata=meta, extras=shard.extras)
 
 
 def collect(env, n_episodes: int, *, batch: int = 1024, out=None,
@@ -129,13 +248,27 @@ def collect(env, n_episodes: int, *, batch: int = 1024, out=None,
         # to resize the last call fails after an expensive compilation.
         run_n = step_batch if getattr(env, "pixels", False) else n
         run_actions = env.sample_actions(run_n, seed=seed + i)
+        target = out / f"shard_{i:05d}.npz"
+        identity = dict(seed=seed+i, count=n, batch=run_n,
+                        seconds=getattr(env, 'seconds', None))
+        if target.exists():
+            old = load(target)
+            if (old.metadata.get('collection') != identity or old.park != env.park_name
+                    or old.appearance != env.appearance or len(old) != n
+                    or not np.array_equal(old.actions,run_actions[:n].astype(np.float32))):
+                raise ValueError(f"resume mismatch: {target}; use a new output directory")
+            paths.append(target)
+            done += n
+            i += 1
+            continue
         run_episodes = env.step(run_actions)
         actions = run_actions[:n]
         episodes = type(run_episodes)(*(
             None if value is None else np.asarray(value)[:n]
             for value in run_episodes))
-        paths.append(save(out / f"shard_{i:05d}.npz", actions, episodes,
-                          park=env.park_name, appearance=env.appearance))
+        paths.append(save(target, actions, episodes,
+                          park=env.park_name, appearance=env.appearance,
+                          metadata=dict(collection=identity)))
         kept = int(np.asarray(episodes.valid).sum())
         if verbose:
             print(f"shard {i}: {n} episodes, {kept} physical", flush=True)

@@ -35,26 +35,37 @@ def make_plan(*, out: str | Path, parks: list[str], appearances: list[str],
     return plan
 
 
-def collect_plan(plan: list[dict]) -> None:
+def collect_plan(plan: list[dict], *, backend="auto") -> None:
     """Execute a plan locally, compiling one reusable environment per domain."""
     import numpy as np
 
     from opensk.rl import store
     from opensk.rl.env import GestureEnv
+    from opensk.rl.backend import select_backend
+    from opensk.rl.classic import ClassicEnv
+    backend = select_backend(backend)
 
     active = None
     env = None
     for item in plan:
+        target = Path(item['path'])
+        if target.exists():
+            old = store.load(target)
+            if (old.metadata.get('collection') != item or len(old) != item['episodes']
+                    or old.park != item['park'] or old.appearance != item['appearance']):
+                raise ValueError(f'resume mismatch: {target}')
+            continue
         domain = (item["park"], item["appearance"], item["episodes"])
         if domain != active:
-            env = GestureEnv(pixels=True, batch=item["episodes"],
-                             park=item["park"],
-                             appearance=item["appearance"])
+            kwargs=dict(batch=item['episodes'],park=item['park'],appearance=item['appearance'])
+            env = (ClassicEnv(**kwargs,seconds=2.3) if backend=='classic'
+                   else GestureEnv(pixels=True,**kwargs))
             active = domain
         actions = env.sample_actions(item["episodes"], seed=item["seed"])
         episodes = env.step(actions)
         path = store.save(item["path"], actions, episodes,
-                          park=env.park_name, appearance=env.appearance)
+                          park=env.park_name, appearance=env.appearance,
+                          metadata=dict(collection=item,backend=backend))
         kept = int(np.asarray(episodes.valid).sum())
         print(f"{path}: {item['episodes']} episodes, {kept} physical",
               flush=True)
@@ -79,6 +90,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--episodes-per-shard", type=int, default=64)
     parser.add_argument("--seed", type=int, default=1000)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--backend", choices=("auto","classic","warp"),default="auto")
     args = parser.parse_args(argv)
 
     parks = _choices(args.parks, PARKS, "parks")
@@ -103,8 +115,11 @@ def main(argv: list[str] | None = None) -> None:
         print(json.dumps(payload, indent=2))
         return
     manifest.parent.mkdir(parents=True, exist_ok=True)
-    manifest.write_text(json.dumps(payload, indent=2))
-    collect_plan(plan)
+    from opensk.rl import store
+    if manifest.exists() and json.loads(manifest.read_text()) != payload:
+        raise ValueError('resume manifest differs; use a new output directory')
+    store.atomic_json(manifest,payload)
+    collect_plan(plan,backend=args.backend)
     print(f"wrote {manifest}")
 
 

@@ -202,6 +202,8 @@ class GestureEnv:
 
     def _build_pixel(self):
         """Batch-major variant: one wide `Data`, rendered outside every vmap."""
+        from .backend import select_backend
+        select_backend("warp")
         import jax
         import jax.numpy as jnp
         from mujoco import mjx
